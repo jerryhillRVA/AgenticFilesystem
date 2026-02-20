@@ -58,6 +58,7 @@ class BatchService:
             mime_type=metadata.mime_type,
             size_bytes=metadata.size_bytes,
             namespace=metadata.namespace,
+            path=metadata.path,
             tags=metadata.tags,
             custom_metadata=metadata.custom_metadata,
             created_at=metadata.created_at,

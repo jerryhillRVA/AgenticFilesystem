@@ -8,6 +8,7 @@ class SemanticSearchRequest(BaseModel):
     k: int = Field(default=10, ge=1, le=100, description="Number of results to return. Use 3-5 for precise retrieval, 10-20 for broad discovery.")
     filters: dict[str, Any] = Field(default_factory=dict, description="Additional payload filters (advanced). Rarely needed for standard use.")
     namespace: str | None = Field(default=None, description="Restrict search to a specific namespace. Omit to search all namespaces.")
+    path: str | None = Field(default=None, description="Restrict search to files at or below this path (prefix match). E.g. 'sprints/sprint-2' matches files in sprint-2 and its subdirectories.")
 
 
 class HybridSearchRequest(BaseModel):
@@ -15,6 +16,7 @@ class HybridSearchRequest(BaseModel):
     k: int = Field(default=10, ge=1, le=100, description="Number of results to return. Use 3-5 for precise retrieval, 10-20 for broad discovery.")
     filters: dict[str, Any] = Field(default_factory=dict, description="Additional payload filters (advanced). Rarely needed for standard use.")
     namespace: str | None = Field(default=None, description="Restrict search to a specific namespace. Omit to search all namespaces.")
+    path: str | None = Field(default=None, description="Restrict search to files at or below this path (prefix match). E.g. 'sprints/sprint-2' matches files in sprint-2 and its subdirectories.")
 
 
 class RAGRequest(BaseModel):
@@ -22,6 +24,7 @@ class RAGRequest(BaseModel):
     k: int = Field(default=5, ge=1, le=20, description="Number of source chunks to retrieve for context. 3-5 for focused answers, up to 10 for comprehensive ones.")
     system_prompt: str | None = Field(default=None, description="Override the default LLM system prompt. Use to customize answer style, length, or domain focus.")
     namespace: str | None = Field(default=None, description="Restrict source documents to a specific namespace.")
+    path: str | None = Field(default=None, description="Restrict source documents to files at or below this path (prefix match).")
 
 
 class SearchHit(BaseModel):
@@ -31,6 +34,7 @@ class SearchHit(BaseModel):
     chunk_text: str = Field(..., description="Text snippet from the matching chunk. Use for previews; retrieve full content via the batch endpoint.")
     chunk_idx: int = Field(..., description="Index of the matching chunk within the file (0-based).")
     namespace: str | None = Field(default=None, description="Namespace the file belongs to.")
+    path: str = Field(default="", description="Subdirectory path within the namespace (e.g. 'sprints/sprint-2'). Empty string for root-level files.")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata from the file's sidecar.")
 
 

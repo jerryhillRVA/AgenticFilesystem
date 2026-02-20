@@ -1,4 +1,6 @@
 import io
+import uuid
+from unittest.mock import patch, MagicMock
 
 
 def test_health(test_client):
@@ -120,6 +122,109 @@ def test_replace_file(test_client):
 def test_file_not_found(test_client):
     response = test_client.get("/v1/test-tenant/files/nonexistent-id")
     assert response.status_code == 404
+
+
+def test_move_file_changes_path(test_client):
+    """Move file to new path — metadata updated, old listing empty, new listing has file."""
+    unique_ns = f"move-{uuid.uuid4().hex[:8]}"
+
+    # Upload to backlog/
+    resp = test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("story.md", io.BytesIO(b"user story"), "text/plain")},
+        data={"namespace": unique_ns, "path": "backlog"},
+    )
+    file_id = resp.json()["file_id"]
+
+    # Move to sprints/sprint-1
+    with patch("agentic_fs.api.files.get_vector_store") as mock_vs:
+        mock_vs.return_value.update_file_path = MagicMock()
+        move_resp = test_client.post(
+            f"/v1/test-tenant/files/{file_id}/move",
+            json={"new_path": "sprints/sprint-1"},
+        )
+
+    assert move_resp.status_code == 200
+    assert move_resp.json()["path"] == "sprints/sprint-1"
+
+    # Old path should be empty
+    old_listing = test_client.get(f"/v1/test-tenant/dirs/backlog?namespace={unique_ns}")
+    assert old_listing.json()["total"] == 0
+
+    # New path should have the file
+    new_listing = test_client.get(f"/v1/test-tenant/dirs/sprints/sprint-1?namespace={unique_ns}")
+    file_entries = [e for e in new_listing.json()["entries"] if e["type"] == "file"]
+    assert len(file_entries) == 1
+    assert file_entries[0]["file_id"] == file_id
+
+
+def test_move_file_changes_namespace(test_client):
+    """Move file to a different namespace."""
+    src_ns = f"srcns-{uuid.uuid4().hex[:8]}"
+    dst_ns = f"dstns-{uuid.uuid4().hex[:8]}"
+
+    resp = test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("doc.txt", io.BytesIO(b"content"), "text/plain")},
+        data={"namespace": src_ns},
+    )
+    file_id = resp.json()["file_id"]
+
+    with patch("agentic_fs.api.files.get_vector_store") as mock_vs:
+        mock_vs.return_value.update_file_path = MagicMock()
+        move_resp = test_client.post(
+            f"/v1/test-tenant/files/{file_id}/move",
+            json={"new_path": "archive", "new_namespace": dst_ns},
+        )
+
+    assert move_resp.status_code == 200
+    assert move_resp.json()["namespace"] == dst_ns
+    assert move_resp.json()["path"] == "archive"
+
+    # File should be in destination namespace
+    new_listing = test_client.get(f"/v1/test-tenant/dirs/archive?namespace={dst_ns}")
+    file_entries = [e for e in new_listing.json()["entries"] if e["type"] == "file"]
+    assert len(file_entries) == 1
+    assert file_entries[0]["file_id"] == file_id
+
+
+def test_move_file_not_found(test_client):
+    """Move nonexistent file returns 404."""
+    with patch("agentic_fs.api.files.get_vector_store") as mock_vs:
+        mock_vs.return_value.update_file_path = MagicMock()
+        response = test_client.post(
+            "/v1/test-tenant/files/nonexistent-id/move",
+            json={"new_path": "somewhere"},
+        )
+    assert response.status_code == 404
+
+
+def test_move_file_updates_batch_response(test_client):
+    """After move, batch retrieval shows new path."""
+    unique_ns = f"movebatch-{uuid.uuid4().hex[:8]}"
+
+    resp = test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("report.txt", io.BytesIO(b"quarterly report"), "text/plain")},
+        data={"namespace": unique_ns, "path": "drafts"},
+    )
+    file_id = resp.json()["file_id"]
+
+    # Move to published/
+    with patch("agentic_fs.api.files.get_vector_store") as mock_vs:
+        mock_vs.return_value.update_file_path = MagicMock()
+        test_client.post(
+            f"/v1/test-tenant/files/{file_id}/move",
+            json={"new_path": "published"},
+        )
+
+    # Batch should reflect new path
+    batch_resp = test_client.post(
+        "/v1/test-tenant/files/batch",
+        json={"file_ids": [file_id]},
+    )
+    entry = batch_resp.json()["files"][0]
+    assert entry["path"] == "published"
 
 
 def test_link_files(test_client):

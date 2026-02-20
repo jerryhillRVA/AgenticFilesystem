@@ -28,6 +28,7 @@ class BatchFileEntry(BaseModel):
     mime_type: str = Field(..., description="MIME type of the file (e.g. 'text/plain', 'application/pdf').")
     size_bytes: int = Field(..., description="File size in bytes.")
     namespace: str | None = Field(default=None, description="Namespace the file belongs to.")
+    path: str = Field(default="", description="Subdirectory path within the namespace where the file is located.")
     tags: list[str] = Field(default_factory=list, description="User-defined tags.")
     custom_metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary key-value metadata.")
     created_at: str = Field(..., description="ISO 8601 upload timestamp.")

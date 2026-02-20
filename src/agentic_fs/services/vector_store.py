@@ -72,6 +72,16 @@ class VectorStore:
         else:
             logger.info(f"Collection {self.collection_name} already exists")
 
+        # Ensure path index exists (idempotent — safe to call on every startup)
+        try:
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="path",
+                field_schema=models.PayloadSchemaType.TEXT,
+            )
+        except Exception:
+            pass  # Index already exists
+
     def upsert_chunks(
         self,
         tenant_id: str,
@@ -80,6 +90,7 @@ class VectorStore:
         dense_vectors: list[list[float]],
         filename: str = "",
         namespace: str = "default",
+        path: str = "",
     ):
         points = []
         for i, (chunk, dense_vec) in enumerate(zip(chunks, dense_vectors)):
@@ -105,6 +116,7 @@ class VectorStore:
                         "chunk_text": chunk.text,
                         "filename": filename,
                         "namespace": namespace,
+                        "path": path,
                     },
                 )
             )
@@ -125,6 +137,7 @@ class VectorStore:
         query_vector: list[float],
         k: int = 10,
         namespace: str | None = None,
+        path: str | None = None,
     ) -> list[dict]:
         must_conditions = [
             models.FieldCondition(
@@ -137,6 +150,13 @@ class VectorStore:
                 models.FieldCondition(
                     key="namespace",
                     match=models.MatchValue(value=namespace),
+                )
+            )
+        if path:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="path",
+                    match=models.MatchText(text=path),
                 )
             )
 
@@ -157,6 +177,7 @@ class VectorStore:
                 "chunk_text": point.payload.get("chunk_text", ""),
                 "chunk_idx": point.payload.get("chunk_idx", 0),
                 "namespace": point.payload.get("namespace"),
+                "path": point.payload.get("path", ""),
                 "metadata": point.payload,
             }
             for point in results.points
@@ -169,6 +190,7 @@ class VectorStore:
         query_text: str,
         k: int = 10,
         namespace: str | None = None,
+        path: str | None = None,
     ) -> list[dict]:
         must_conditions = [
             models.FieldCondition(
@@ -181,6 +203,13 @@ class VectorStore:
                 models.FieldCondition(
                     key="namespace",
                     match=models.MatchValue(value=namespace),
+                )
+            )
+        if path:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="path",
+                    match=models.MatchText(text=path),
                 )
             )
 
@@ -219,6 +248,7 @@ class VectorStore:
                 "chunk_text": point.payload.get("chunk_text", ""),
                 "chunk_idx": point.payload.get("chunk_idx", 0),
                 "namespace": point.payload.get("namespace"),
+                "path": point.payload.get("path", ""),
                 "metadata": point.payload,
             }
             for point in results.points
@@ -294,10 +324,42 @@ class VectorStore:
                     "chunk_text": point.payload.get("chunk_text", ""),
                     "chunk_idx": point.payload.get("chunk_idx", 0),
                     "namespace": point.payload.get("namespace"),
+                    "path": point.payload.get("path", ""),
                     "metadata": point.payload,
                 }
 
         return list(seen.values())[:k]
+
+    def update_file_path(
+        self,
+        tenant_id: str,
+        file_id: str,
+        new_path: str,
+        new_namespace: str | None = None,
+    ):
+        payload_updates = {"path": new_path}
+        if new_namespace is not None:
+            payload_updates["namespace"] = new_namespace
+
+        self.client.set_payload(
+            collection_name=self.collection_name,
+            payload=payload_updates,
+            points=models.FilterSelector(
+                filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="tenant_id",
+                            match=models.MatchValue(value=tenant_id),
+                        ),
+                        models.FieldCondition(
+                            key="file_id",
+                            match=models.MatchValue(value=file_id),
+                        ),
+                    ]
+                )
+            ),
+        )
+        logger.info(f"Updated path for file {file_id} to '{new_path}'")
 
     def delete_by_file(self, tenant_id: str, file_id: str):
         self.client.delete(

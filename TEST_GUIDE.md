@@ -201,6 +201,91 @@ curl -s "http://localhost:8000/v1/my-org/dirs/?namespace=office" | python3 -m js
 
 ---
 
+## 7b. Folder Organization
+
+Organize files into meaningful folder structures — useful for project management, wikis, and any system with hierarchical content.
+
+### Upload files to nested paths
+```bash
+# Create a project namespace with backlog and sprint folders
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/architecture.md" \
+  -F "namespace=project" \
+  -F "path=wiki/architecture"
+
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/meeting-notes.txt" \
+  -F "namespace=project" \
+  -F "path=sprints/sprint-1"
+```
+
+### Browse the directory tree
+```bash
+# Root of namespace — shows top-level folders
+curl -s "http://localhost:8000/v1/my-org/dirs/?namespace=project" | python3 -m json.tool
+
+# Drill into sprints/
+curl -s "http://localhost:8000/v1/my-org/dirs/sprints?namespace=project" | python3 -m json.tool
+
+# See files in sprint-1/
+curl -s "http://localhost:8000/v1/my-org/dirs/sprints/sprint-1?namespace=project" | python3 -m json.tool
+```
+
+Each entry includes a `path` field showing the full path (e.g. `"sprints/sprint-1/meeting-notes.txt"`).
+
+### Search within a path subtree
+```bash
+# Wait for indexing
+sleep 10
+
+# Search only within sprint-1
+curl -s -X POST http://localhost:8000/v1/my-org/search/hybrid \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "meeting notes",
+    "k": 5,
+    "path": "sprints/sprint-1"
+  }' | python3 -m json.tool
+```
+
+Search results also include the `path` field, so agents know where each result lives.
+
+### Create a directory before uploading
+```bash
+# Pre-create sprint-2 folder
+curl -s -X POST http://localhost:8000/v1/my-org/dirs \
+  -H "Content-Type: application/json" \
+  -d '{"namespace": "project", "path": "sprints/sprint-2"}'
+
+# Verify it exists
+curl -s "http://localhost:8000/v1/my-org/dirs/sprints?namespace=project" | python3 -m json.tool
+```
+
+### Move files between folders
+```bash
+# Move a file from backlog to sprint-2 (replace FILE_ID with actual ID)
+curl -s -X POST http://localhost:8000/v1/my-org/files/FILE_ID/move \
+  -H "Content-Type: application/json" \
+  -d '{"new_path": "sprints/sprint-2"}'
+
+# Move a file to a different namespace
+curl -s -X POST http://localhost:8000/v1/my-org/files/FILE_ID/move \
+  -H "Content-Type: application/json" \
+  -d '{"new_path": "archive", "new_namespace": "completed"}'
+```
+
+Moving a file updates its metadata, directory listings, and vector search payloads in-place — no re-indexing needed.
+
+### Delete an empty directory
+```bash
+# First move/delete all files from the directory, then:
+curl -s -X DELETE "http://localhost:8000/v1/my-org/dirs/sprints/sprint-1?namespace=project"
+
+# Trying to delete a non-empty directory returns 409 Conflict
+```
+
+---
+
 ## 8. Semantic Search
 
 Find documents by meaning, not just keywords:

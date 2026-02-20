@@ -385,3 +385,45 @@ def test_batch_retrieve_binary_file(test_client):
     assert entry["content"] == "Extracted PDF text content"
     assert entry["download_url"].endswith(f"/v1/test-tenant/files/{file_id}")
     assert entry["mime_type"] == "application/pdf"
+
+
+# ── Path in batch response ────────────────────────────────────────────
+
+
+def test_batch_retrieve_includes_path(test_client):
+    """Upload with path, verify path appears in batch response."""
+    content = b"file in a subfolder"
+    resp = test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("nested.txt", io.BytesIO(content), "text/plain")},
+        data={"namespace": "project", "path": "sprints/sprint-1"},
+    )
+    file_id = resp.json()["file_id"]
+
+    batch_resp = test_client.post(
+        "/v1/test-tenant/files/batch",
+        json={"file_ids": [file_id]},
+    )
+    assert batch_resp.status_code == 200
+    entry = batch_resp.json()["files"][0]
+    assert entry["path"] == "sprints/sprint-1"
+    assert entry["namespace"] == "project"
+
+
+def test_batch_retrieve_path_defaults_empty(test_client):
+    """Upload without path, verify path defaults to empty string."""
+    content = b"root level file"
+    resp = test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("root.txt", io.BytesIO(content), "text/plain")},
+        data={"namespace": "default"},
+    )
+    file_id = resp.json()["file_id"]
+
+    batch_resp = test_client.post(
+        "/v1/test-tenant/files/batch",
+        json={"file_ids": [file_id]},
+    )
+    assert batch_resp.status_code == 200
+    entry = batch_resp.json()["files"][0]
+    assert entry["path"] == ""

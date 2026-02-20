@@ -50,6 +50,10 @@ Tenant-scoped file storage and semantic search API designed for AI agent workflo
   from one tenant are never visible to another.
 - **Namespaces**: Organize files within a tenant (e.g. `docs`, `reports`, `code`). Searches
   can be filtered by namespace.
+- **Paths / Folders**: Files can be organized into folder hierarchies within a namespace
+  (e.g. `sprints/sprint-2/`, `wiki/architecture/`). Search results include the file's `path`,
+  and you can scope searches to a subtree using the `path` parameter. Use the directory
+  management endpoints to create folders, move files between paths, and clean up empty directories.
 - **Indexing is async**: File uploads return immediately. Content extraction, chunking, and
   embedding happen in the background. Poll the status endpoint or use a reasonable delay
   (typically 2-10 seconds for text files, longer for large binaries).
@@ -68,10 +72,11 @@ OPENAPI_TAGS = [
     {
         "name": "files",
         "description": (
-            "Upload, download, replace, and delete files. Every file is stored under a "
+            "Upload, download, replace, move, and delete files. Every file is stored under a "
             "tenant and assigned a unique `file_id`. Uploading a file automatically "
             "triggers async indexing (text extraction → chunking → embedding). Use the "
             "search status endpoint to confirm indexing is complete before searching. "
+            "Files can be moved between paths/namespaces without re-indexing. "
             "For retrieving multiple files at once, prefer the batch endpoint over "
             "individual downloads."
         ),
@@ -95,16 +100,18 @@ OPENAPI_TAGS = [
             "matching. Use `semantic` when the query is conceptual and exact terms don't "
             "matter. Use `ask` (RAG) when you need a synthesized natural-language answer "
             "with source citations. Use `similar/{file_id}` for 'more like this' discovery. "
-            "All search endpoints return `file_id` references — pass these to the batch "
-            "endpoint to retrieve full file content."
+            "All search endpoints accept an optional `path` parameter to scope results to a "
+            "subtree (e.g. `path: 'sprints/sprint-2'`). All search endpoints return `file_id` "
+            "references — pass these to the batch endpoint to retrieve full file content."
         ),
     },
     {
         "name": "directories",
         "description": (
-            "Browse the file hierarchy within a tenant and namespace. Useful for agents "
-            "that need to discover available files without searching, or for building "
-            "file-tree UIs. Returns file and directory entries with metadata."
+            "Browse, create, and delete directories within a tenant and namespace. Useful "
+            "for agents that need to discover available files without searching, set up "
+            "folder structures before uploading files, or clean up empty directories. "
+            "Returns file and directory entries with metadata including full paths."
         ),
     },
 ]

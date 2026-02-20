@@ -192,15 +192,18 @@ class FileStore:
         for item in sorted(os.listdir(ns_dir)):
             item_path = os.path.join(ns_dir, item)
             if os.path.isdir(item_path):
-                entries.append(DirEntry(name=item, type="directory"))
+                dir_path = f"{path}/{item}".strip("/") if path else item
+                entries.append(DirEntry(name=item, type="directory", path=dir_path))
             elif item.endswith(".ref"):
                 with open(item_path) as f:
                     ref = json.load(f)
                 try:
                     meta = self.get_metadata(tenant, ref["file_id"])
+                    entry_path = f"{path}/{meta.filename}".strip("/") if path else meta.filename
                     entries.append(DirEntry(
                         name=meta.filename,
                         type="file",
+                        path=entry_path,
                         file_id=meta.file_id,
                         size_bytes=meta.size_bytes,
                         mime_type=meta.mime_type,
@@ -210,6 +213,57 @@ class FileStore:
                     pass
 
         return entries
+
+    def move_file(
+        self,
+        tenant: str,
+        file_id: str,
+        new_path: str,
+        new_namespace: str | None = None,
+    ) -> FileMetadata:
+        metadata = self.get_metadata(tenant, file_id)
+        old_namespace = metadata.namespace
+        old_path = metadata.path
+        target_namespace = new_namespace or old_namespace
+
+        # Remove old .ref file
+        old_ns_dir = self._namespace_dir(tenant, old_namespace, old_path)
+        old_ref = os.path.join(old_ns_dir, f"{file_id}.ref")
+        if os.path.exists(old_ref):
+            os.remove(old_ref)
+
+        # Create new namespace/path directory and .ref file
+        new_ns_dir = self._namespace_dir(tenant, target_namespace, new_path)
+        os.makedirs(new_ns_dir, exist_ok=True)
+        new_ref = os.path.join(new_ns_dir, f"{file_id}.ref")
+        with open(new_ref, "w") as f:
+            json.dump({"file_id": file_id, "filename": metadata.filename}, f)
+
+        # Update metadata sidecar
+        updated = self.update_metadata(
+            tenant, file_id,
+            path=new_path,
+            namespace=target_namespace,
+        )
+        return updated
+
+    def create_directory(self, tenant: str, namespace: str, path: str) -> str:
+        ns_dir = self._namespace_dir(tenant, namespace, path)
+        os.makedirs(ns_dir, exist_ok=True)
+        return path
+
+    def delete_directory(self, tenant: str, namespace: str, path: str) -> bool:
+        ns_dir = self._namespace_dir(tenant, namespace, path)
+        if not os.path.isdir(ns_dir):
+            raise FileNotFoundError(f"Directory not found: {path}")
+
+        # Check if directory is empty (no .ref files, no subdirectories)
+        contents = os.listdir(ns_dir)
+        if contents:
+            raise ValueError(f"Directory is not empty: {path}")
+
+        os.rmdir(ns_dir)
+        return True
 
     def get_file_path(self, tenant: str, file_id: str) -> str:
         file_dir = self._file_dir(tenant, file_id)

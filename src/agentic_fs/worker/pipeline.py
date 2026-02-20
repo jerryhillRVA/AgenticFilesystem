@@ -69,6 +69,7 @@ def run_indexing_pipeline(tenant_id: str, file_id: str):
             dense_vectors=dense_vectors,
             filename=metadata.filename,
             namespace=metadata.namespace,
+            path=metadata.path,
         )
 
         # Update status to indexed

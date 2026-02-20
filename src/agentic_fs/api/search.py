@@ -46,6 +46,7 @@ async def semantic_search(tenant: str, body: SemanticSearchRequest):
         query_vector=query_vector,
         k=body.k,
         namespace=body.namespace,
+        path=body.path,
     )
 
     results = [
@@ -56,6 +57,7 @@ async def semantic_search(tenant: str, body: SemanticSearchRequest):
             chunk_text=r["chunk_text"],
             chunk_idx=r["chunk_idx"],
             namespace=r.get("namespace"),
+            path=r.get("path", ""),
         )
         for r in raw_results
     ]
@@ -89,6 +91,7 @@ async def hybrid_search(tenant: str, body: HybridSearchRequest):
         query_text=body.query,
         k=body.k,
         namespace=body.namespace,
+        path=body.path,
     )
 
     results = [
@@ -99,6 +102,7 @@ async def hybrid_search(tenant: str, body: HybridSearchRequest):
             chunk_text=r["chunk_text"],
             chunk_idx=r["chunk_idx"],
             namespace=r.get("namespace"),
+            path=r.get("path", ""),
         )
         for r in raw_results
     ]
@@ -132,6 +136,7 @@ async def find_similar(tenant: str, file_id: str, k: int = 10):
             chunk_text=r["chunk_text"],
             chunk_idx=r["chunk_idx"],
             namespace=r.get("namespace"),
+            path=r.get("path", ""),
         )
         for r in raw_results
     ]
@@ -170,6 +175,7 @@ async def rag_ask(tenant: str, body: RAGRequest):
         query_text=body.query,
         k=body.k,
         namespace=body.namespace,
+        path=body.path,
     )
 
     if not raw_results:
@@ -218,6 +224,7 @@ async def rag_ask(tenant: str, body: RAGRequest):
             chunk_text=r["chunk_text"],
             chunk_idx=r["chunk_idx"],
             namespace=r.get("namespace"),
+            path=r.get("path", ""),
         )
         for r in raw_results
     ]

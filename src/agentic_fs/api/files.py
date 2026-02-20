@@ -3,12 +3,13 @@ import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import Response
 
-from agentic_fs.dependencies import get_file_store
+from agentic_fs.dependencies import get_file_store, get_vector_store
 from agentic_fs.models.file import (
     FileUploadResponse,
     FileMetadata,
     FileMetadataUpdate,
     FileLinkRequest,
+    FileMoveRequest,
 )
 from agentic_fs.worker.tasks import index_file, delete_vectors
 from agentic_fs.services.pairing import PairingService
@@ -191,3 +192,31 @@ async def link_files(tenant: str, file_id: str, body: FileLinkRequest):
         raise HTTPException(status_code=404, detail="One or both files not found")
 
     return {"pairing_id": pairing_id, "file_a": file_id, "file_b": body.target_file_id}
+
+
+@router.post("/v1/{tenant}/files/{file_id}/move", response_model=FileMetadata)
+async def move_file(tenant: str, file_id: str, body: FileMoveRequest):
+    """Move a file to a different path and/or namespace.
+
+    Updates the file's location in the directory hierarchy without changing its
+    `file_id`. The file remains searchable at its new path immediately — Qdrant
+    vector payloads are updated in-place (no re-indexing needed).
+
+    **Use cases:** reorganizing project files (e.g. moving a user story from
+    `backlog/` to `sprints/sprint-2/`), archiving completed work, restructuring
+    a wiki namespace.
+    """
+    fs = get_file_store()
+    try:
+        updated = fs.move_file(tenant, file_id, body.new_path, body.new_namespace)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Update Qdrant payloads in-place (no re-embedding needed)
+    try:
+        vs = get_vector_store()
+        vs.update_file_path(tenant, file_id, body.new_path, body.new_namespace)
+    except Exception as e:
+        logger.warning(f"Failed to update vector path for {file_id}: {e}")
+
+    return updated

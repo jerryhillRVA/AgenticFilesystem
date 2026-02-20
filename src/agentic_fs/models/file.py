@@ -40,6 +40,7 @@ class FileMetadataUpdate(BaseModel):
 class DirEntry(BaseModel):
     name: str = Field(..., description="File or directory name.")
     type: str = Field(..., description="'file' or 'directory'.")
+    path: str | None = Field(default=None, description="Full path of this entry within the namespace (e.g. 'sprints/sprint-2/story.md').")
     file_id: str | None = Field(default=None, description="File ID (present only for type='file').")
     size_bytes: int | None = Field(default=None, description="File size (present only for type='file').")
     mime_type: str | None = Field(default=None, description="MIME type (present only for type='file').")
@@ -55,3 +56,13 @@ class DirListResponse(BaseModel):
 
 class FileLinkRequest(BaseModel):
     target_file_id: str = Field(..., description="The file_id to link with. Creates a bidirectional pairing.")
+
+
+class FileMoveRequest(BaseModel):
+    new_path: str = Field(..., description="New path within the namespace (e.g. 'sprints/sprint-2'). Use empty string for root.")
+    new_namespace: str | None = Field(default=None, description="Optionally move to a different namespace. Omit to keep the current namespace.")
+
+
+class CreateDirectoryRequest(BaseModel):
+    namespace: str = Field(default="default", description="Namespace for the directory.")
+    path: str = Field(..., min_length=1, description="Directory path to create (e.g. 'sprints/sprint-3'). Nested paths are created recursively.")

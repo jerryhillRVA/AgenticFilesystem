@@ -83,9 +83,17 @@ Clients (Agents / Web UI / API)
 | `PUT` | `/v1/{tenant}/files/{id}` | Replace file |
 | `PATCH` | `/v1/{tenant}/files/{id}/meta` | Update tags/metadata |
 | `DELETE` | `/v1/{tenant}/files/{id}` | Delete file + vectors |
-| `GET` | `/v1/{tenant}/dirs/{path}` | List directory |
+| `POST` | `/v1/{tenant}/files/{id}/move` | Move file to new path/namespace |
 | `POST` | `/v1/{tenant}/files/{id}/link` | Pair binary↔text |
 | `POST` | `/v1/{tenant}/files/batch` | Batch retrieve files (metadata + content) |
+
+### Directory Operations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/{tenant}/dirs/{path}` | List directory contents |
+| `POST` | `/v1/{tenant}/dirs` | Create a directory |
+| `DELETE` | `/v1/{tenant}/dirs/{path}` | Delete an empty directory |
 
 ### Search Operations
 
@@ -99,11 +107,12 @@ Clients (Agents / Web UI / API)
 
 ### Examples
 
-**Upload a file:**
+**Upload a file to a path:**
 ```bash
 curl -X POST http://localhost:8000/v1/my-tenant/files \
   -F "file=@document.pdf" \
-  -F "namespace=docs" \
+  -F "namespace=project" \
+  -F "path=sprints/sprint-2" \
   -F "tags=report,quarterly"
 ```
 
@@ -112,6 +121,13 @@ curl -X POST http://localhost:8000/v1/my-tenant/files \
 curl -X POST http://localhost:8000/v1/my-tenant/search/semantic \
   -H "Content-Type: application/json" \
   -d '{"query": "system architecture design", "k": 5}'
+```
+
+**Search within a path subtree:**
+```bash
+curl -X POST http://localhost:8000/v1/my-tenant/search/hybrid \
+  -H "Content-Type: application/json" \
+  -d '{"query": "user story acceptance criteria", "k": 5, "path": "sprints/sprint-2"}'
 ```
 
 **RAG Q&A:**
@@ -136,7 +152,32 @@ curl -X POST http://localhost:8000/v1/my-tenant/files/batch \
   }'
 ```
 
-Each file entry in the response includes metadata, a `content_type` discriminator (`text`, `json`, `binary`, or `error`), inline content (raw text, parsed JSON, or extracted text for binaries), and a fully qualified `download_url`. Set `"stream": true` for NDJSON streaming.
+Each file entry in the response includes metadata, a `content_type` discriminator (`text`, `json`, `binary`, or `error`), inline content (raw text, parsed JSON, or extracted text for binaries), a `path` showing the file's location, and a fully qualified `download_url`. Set `"stream": true` for NDJSON streaming.
+
+**Move a file to a new path:**
+```bash
+curl -X POST http://localhost:8000/v1/my-tenant/files/{file_id}/move \
+  -H "Content-Type: application/json" \
+  -d '{"new_path": "sprints/sprint-3"}'
+```
+
+**Create a directory:**
+```bash
+curl -X POST http://localhost:8000/v1/my-tenant/dirs \
+  -H "Content-Type: application/json" \
+  -d '{"namespace": "project", "path": "sprints/sprint-4"}'
+```
+
+**Delete an empty directory:**
+```bash
+curl -X DELETE "http://localhost:8000/v1/my-tenant/dirs/sprints/sprint-4?namespace=project"
+```
+
+**Browse directory tree:**
+```bash
+curl http://localhost:8000/v1/my-tenant/dirs/?namespace=project
+curl http://localhost:8000/v1/my-tenant/dirs/sprints/sprint-2?namespace=project
+```
 
 ## Seed Data
 
@@ -195,7 +236,7 @@ src/agentic_fs/
 │   ├── files.py      # File CRUD
 │   ├── batch.py      # Batch file retrieval
 │   ├── search.py     # Search + RAG
-│   └── dirs.py       # Directory listing
+│   └── dirs.py       # Directory listing, create, delete
 ├── services/         # Business logic
 │   ├── file_store.py # Local filesystem ops
 │   ├── batch.py      # Batch retrieval logic
