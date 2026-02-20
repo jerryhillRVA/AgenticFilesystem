@@ -50,17 +50,20 @@ src/agentic_fs/
 ├── config.py         # Pydantic Settings, reads .env
 ├── dependencies.py   # DI via @lru_cache factories
 ├── api/
-│   ├── router.py     # Aggregates file, dir, search routers
+│   ├── router.py     # Aggregates file, dir, search, batch routers
 │   ├── files.py      # File CRUD: upload, download, replace, delete, link
+│   ├── batch.py      # Batch file retrieval (metadata + content)
 │   ├── dirs.py       # Directory listing
 │   ├── search.py     # Semantic, hybrid, similar, RAG, status
 │   └── middleware.py  # Request logging
 ├── models/
 │   ├── file.py       # FileMetadata, FileUploadResponse, DirEntry, etc.
+│   ├── batch.py      # BatchRetrieveRequest/Response, BatchFileEntry
 │   ├── search.py     # SearchRequest/Response, RAGRequest/Response
 │   └── common.py     # Shared models
 ├── services/
 │   ├── file_store.py     # Filesystem abstraction (save, get, delete, list)
+│   ├── batch.py          # Batch retrieval logic (multi-file content fetch)
 │   ├── metadata_store.py # Read/write .metadata JSON files
 │   ├── vector_store.py   # Qdrant client (collection setup, upsert, search, delete)
 │   ├── embedding.py      # OpenAI embedding client with retry
@@ -84,6 +87,8 @@ src/agentic_fs/
 - **Deterministic point IDs**: `uuid5(file_id:chunk_idx)` — re-indexing is idempotent
 - **Payload filtering**: Qdrant tenant isolation via `tenant_id` in every point payload
 - **Async pipeline**: Celery tasks for indexing, decoupled from API response
+- **Module-level settings access**: `dependencies.py` uses `agentic_fs.config.settings` (not `from ... import settings`) so that `importlib.reload(config)` in tests works correctly. New modules should follow this pattern.
+- **Test isolation**: `conftest.py` reloads `config`, clears all `@lru_cache` deps. When adding a new cached dependency, add its `cache_clear()` to both setup and teardown in conftest.
 
 ## Environment Variables
 
@@ -93,6 +98,8 @@ Key vars in `.env`:
 - `REDIS_URL` — Redis for Celery (default: `redis://redis:6379/0`)
 - `OPENAI_API_KEY` — required for embeddings and RAG
 - `TIKA_URL` — Tika server (default: `http://tika:9998`)
+- `API_BASE_URL` — base URL for download links (default: auto-built from host/port)
+- `BATCH_MAX_FILES` — max files per batch retrieve request (default: `100`)
 
 ## Running
 

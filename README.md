@@ -47,10 +47,11 @@ Clients (Agents / Web UI / API)
 
 2. **Start all services**
    ```bash
-   docker compose up -d --build
+   ./dockerStart.sh --start
    ```
 
-   This starts 5 services:
+   This builds images, starts all 5 services, waits for health checks, and displays status:
+
    | Service | Port | Purpose |
    |---------|------|---------|
    | api | 8000 | FastAPI server |
@@ -84,6 +85,7 @@ Clients (Agents / Web UI / API)
 | `DELETE` | `/v1/{tenant}/files/{id}` | Delete file + vectors |
 | `GET` | `/v1/{tenant}/dirs/{path}` | List directory |
 | `POST` | `/v1/{tenant}/files/{id}/link` | Pair binary↔text |
+| `POST` | `/v1/{tenant}/files/batch` | Batch retrieve files (metadata + content) |
 
 ### Search Operations
 
@@ -123,6 +125,18 @@ curl -X POST http://localhost:8000/v1/my-tenant/search/ask \
 ```bash
 curl http://localhost:8000/v1/my-tenant/search/status/{file_id}
 ```
+
+**Batch retrieve files** (get metadata + content for multiple files in one call):
+```bash
+curl -X POST http://localhost:8000/v1/my-tenant/files/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["FILE_ID_1", "FILE_ID_2", "FILE_ID_3"],
+    "include_content": true
+  }'
+```
+
+Each file entry in the response includes metadata, a `content_type` discriminator (`text`, `json`, `binary`, or `error`), inline content (raw text, parsed JSON, or extracted text for binaries), and a fully qualified `download_url`. Set `"stream": true` for NDJSON streaming.
 
 ## Seed Data
 
@@ -168,6 +182,8 @@ All configuration is via environment variables (`.env` file):
 | `TIKA_URL` | `http://tika:9998` | Tika server URL |
 | `CHUNK_SIZE_TOKENS` | `512` | Chunk size in tokens |
 | `CHUNK_OVERLAP_PERCENT` | `10` | Chunk overlap percentage |
+| `API_BASE_URL` | _(auto)_ | Base URL for download links (e.g. `https://api.example.com`) |
+| `BATCH_MAX_FILES` | `100` | Max file IDs per batch retrieve request |
 
 ## Project Structure
 
@@ -177,10 +193,12 @@ src/agentic_fs/
 ├── config.py         # Settings from .env
 ├── api/              # REST endpoints
 │   ├── files.py      # File CRUD
+│   ├── batch.py      # Batch file retrieval
 │   ├── search.py     # Search + RAG
 │   └── dirs.py       # Directory listing
 ├── services/         # Business logic
 │   ├── file_store.py # Local filesystem ops
+│   ├── batch.py      # Batch retrieval logic
 │   ├── vector_store.py # Qdrant integration
 │   ├── embedding.py  # OpenAI embeddings
 │   ├── chunker.py    # Text chunking
@@ -191,9 +209,20 @@ src/agentic_fs/
     └── tasks.py      # Task definitions
 ```
 
-## Stopping Services
+## Docker Management
+
+Use `dockerStart.sh` to manage the Docker Compose stack:
 
 ```bash
-docker compose down        # Stop containers
-docker compose down -v     # Stop + remove volumes (clears all data)
+./dockerStart.sh --start              # Build, start all services, wait for health checks
+./dockerStart.sh --rebuild            # Force rebuild images (no cache) and restart
+./dockerStart.sh --stop               # Stop all services
+./dockerStart.sh --logs               # Tail logs from all services
+./dockerStart.sh --logs api           # Tail logs from a specific service (api|worker|qdrant|redis|tika)
+./dockerStart.sh --status             # Show service status and health checks
+```
+
+To also remove volumes and clear all data:
+```bash
+docker compose down -v
 ```

@@ -21,11 +21,21 @@ router = APIRouter()
 @router.post("/v1/{tenant}/files", response_model=FileUploadResponse)
 async def upload_file(
     tenant: str,
-    file: UploadFile = File(...),
-    namespace: str = Form(default="default"),
-    path: str = Form(default=""),
-    tags: str = Form(default=""),
+    file: UploadFile = File(..., description="The file to upload (any type: text, JSON, PDF, DOCX, images, etc.)"),
+    namespace: str = Form(default="default", description="Logical grouping for the file (e.g. 'docs', 'reports'). Used to filter searches."),
+    path: str = Form(default="", description="Optional subdirectory path within the namespace."),
+    tags: str = Form(default="", description="Comma-separated tags for categorization (e.g. 'report,quarterly,2024')."),
 ):
+    """Upload a file and trigger async indexing.
+
+    The file is stored immediately and a background job is enqueued to extract text,
+    chunk it, generate embeddings, and index it in the vector store. The response
+    includes a `file_id` that can be used with all other endpoints.
+
+    **Important:** The file will not appear in search results until indexing completes.
+    Check `GET /v1/{tenant}/search/status/{file_id}` and wait for `indexing_status: "indexed"`.
+    Typical indexing time: 2-10 seconds for text files, longer for large binaries.
+    """
     fs = get_file_store()
     content = await file.read()
 
@@ -53,6 +63,12 @@ async def upload_file(
 
 @router.get("/v1/{tenant}/files/{file_id}")
 async def download_file(tenant: str, file_id: str):
+    """Download the raw file content by file_id.
+
+    Returns the original binary content with appropriate Content-Type and
+    Content-Disposition headers. For retrieving multiple files or getting
+    inline text content, prefer `POST /v1/{tenant}/files/batch` instead.
+    """
     fs = get_file_store()
     try:
         content, filename = fs.get_file_content(tenant, file_id)
@@ -69,6 +85,12 @@ async def download_file(tenant: str, file_id: str):
 
 @router.get("/v1/{tenant}/files/{file_id}/meta", response_model=FileMetadata)
 async def get_file_metadata(tenant: str, file_id: str):
+    """Get metadata for a single file without downloading its content.
+
+    Returns file metadata including filename, MIME type, size, tags, namespace,
+    and current indexing status. For metadata on multiple files at once, use the
+    batch endpoint with `include_content: false`.
+    """
     fs = get_file_store()
     try:
         return fs.get_metadata(tenant, file_id)
@@ -80,8 +102,14 @@ async def get_file_metadata(tenant: str, file_id: str):
 async def replace_file(
     tenant: str,
     file_id: str,
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., description="The replacement file content."),
 ):
+    """Replace a file's content while keeping the same file_id.
+
+    The existing vectors are deleted and the file is re-indexed. The file_id
+    remains stable, so any references to it (e.g. in agent memory or conversations)
+    continue to work. Wait for re-indexing to complete before searching.
+    """
     fs = get_file_store()
     content = await file.read()
 
@@ -110,6 +138,12 @@ async def update_file_metadata(
     file_id: str,
     update: FileMetadataUpdate,
 ):
+    """Update a file's tags or custom metadata without re-uploading.
+
+    Only the provided fields are updated; omitted fields are left unchanged.
+    This does not trigger re-indexing — tags and custom_metadata are stored in
+    the sidecar metadata file only.
+    """
     fs = get_file_store()
     try:
         kwargs = {}
@@ -124,6 +158,11 @@ async def update_file_metadata(
 
 @router.delete("/v1/{tenant}/files/{file_id}")
 async def delete_file(tenant: str, file_id: str):
+    """Delete a file and its associated vectors from the index.
+
+    This permanently removes the file content, metadata, and all indexed vectors.
+    The file_id will no longer be valid for any operations. This action cannot be undone.
+    """
     fs = get_file_store()
     deleted = fs.delete_file(tenant, file_id)
     if not deleted:
@@ -137,6 +176,12 @@ async def delete_file(tenant: str, file_id: str):
 
 @router.post("/v1/{tenant}/files/{file_id}/link")
 async def link_files(tenant: str, file_id: str, body: FileLinkRequest):
+    """Create a bidirectional link between two files (e.g. binary and its text transcript).
+
+    Useful for pairing a binary file (PDF, image) with a separate text file that
+    contains its human-readable content. Both files must already exist. The pairing
+    is stored in both files' metadata via `pairing_id` and `paired_file_id`.
+    """
     fs = get_file_store()
     pairing = PairingService(fs)
 

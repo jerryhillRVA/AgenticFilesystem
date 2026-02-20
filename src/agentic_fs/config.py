@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    api_base_url: str = ""  # e.g. "http://localhost:8000" — if empty, auto-built from api_host/api_port
     log_level: str = "info"
+
+    # Batch retrieval
+    batch_max_files: int = 100
 
     # Chunking
     chunk_size_tokens: int = 512

@@ -30,20 +30,25 @@ def test_client(temp_file_store, mock_celery):
     os.environ["OPENAI_API_KEY"] = "test-key"
     os.environ["LOG_LEVEL"] = "warning"
 
+    # Reload config so the module-level `settings` object is recreated
+    # with the new env vars. Dependencies use `agentic_fs.config.settings`
+    # (module-level access, not an import copy) so they automatically
+    # pick up the reloaded settings when their caches are cleared.
+    import importlib
+    import agentic_fs.config
+    importlib.reload(agentic_fs.config)
+
     from agentic_fs import dependencies
 
-    # Reset cached dependencies so they pick up new env vars
+    # Clear all lru_cache'd dependency factories so they create fresh
+    # service instances using the reloaded settings on next call.
     dependencies.get_file_store.cache_clear()
     dependencies.get_metadata_store.cache_clear()
     dependencies.get_vector_store.cache_clear()
     dependencies.get_embedding_service.cache_clear()
     dependencies.get_chunker.cache_clear()
     dependencies.get_extractor.cache_clear()
-
-    # Reload config to pick up new env vars
-    import importlib
-    import agentic_fs.config
-    importlib.reload(agentic_fs.config)
+    dependencies.get_batch_service.cache_clear()
 
     with patch("agentic_fs.main.VectorStore") as mock_vs_class:
         mock_vs_class.return_value.ensure_collection = MagicMock()
@@ -63,3 +68,4 @@ def test_client(temp_file_store, mock_celery):
     dependencies.get_embedding_service.cache_clear()
     dependencies.get_chunker.cache_clear()
     dependencies.get_extractor.cache_clear()
+    dependencies.get_batch_service.cache_clear()

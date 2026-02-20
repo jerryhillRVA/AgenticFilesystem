@@ -108,7 +108,61 @@ curl -s http://localhost:8000/v1/my-org/files/FILE_ID --output downloaded_file.p
 
 ---
 
-## 4. View File Metadata
+## 4. Batch Retrieve Files
+
+Retrieve metadata and content for multiple files in a single call. This is the most efficient way for agents to consume search results.
+
+### Standard JSON response
+```bash
+curl -s -X POST http://localhost:8000/v1/my-org/files/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["FILE_ID_1", "FILE_ID_2", "FILE_ID_3"]
+  }' | python3 -m json.tool
+```
+
+Response contains a `files` array where each entry includes:
+- Full metadata (filename, mime_type, size, tags, etc.)
+- `content_type`: `"text"`, `"json"`, `"binary"`, or `"error"`
+- `content`: inline text, parsed JSON, or extracted text for binaries
+- `download_url`: fully qualified URL for direct file download
+- `truncated`: whether content was capped
+
+### NDJSON streaming (one JSON line per file)
+```bash
+curl -s -X POST http://localhost:8000/v1/my-org/files/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["FILE_ID_1", "FILE_ID_2"],
+    "stream": true
+  }'
+```
+
+### Metadata-only (skip content)
+```bash
+curl -s -X POST http://localhost:8000/v1/my-org/files/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["FILE_ID_1"],
+    "include_content": false
+  }' | python3 -m json.tool
+```
+
+### Truncated content
+```bash
+curl -s -X POST http://localhost:8000/v1/my-org/files/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["FILE_ID_1"],
+    "max_text_chars": 500
+  }' | python3 -m json.tool
+```
+
+The max files per batch defaults to 100 and is configurable via the `BATCH_MAX_FILES` environment variable.
+
+---
+
+## 5. View File Metadata
 
 ```bash
 curl -s http://localhost:8000/v1/my-org/files/FILE_ID/meta | python3 -m json.tool
@@ -118,7 +172,7 @@ Shows: filename, mime_type, size, tags, indexing_status, timestamps, etc.
 
 ---
 
-## 5. Update Tags and Custom Metadata
+## 6. Update Tags and Custom Metadata
 
 ```bash
 curl -s -X PATCH http://localhost:8000/v1/my-org/files/FILE_ID/meta \
@@ -135,7 +189,7 @@ curl -s -X PATCH http://localhost:8000/v1/my-org/files/FILE_ID/meta \
 
 ---
 
-## 6. List Files in a Directory
+## 7. List Files in a Directory
 
 ```bash
 # List files in the "docs" namespace
@@ -147,7 +201,7 @@ curl -s "http://localhost:8000/v1/my-org/dirs/?namespace=office" | python3 -m js
 
 ---
 
-## 7. Semantic Search
+## 8. Semantic Search
 
 Find documents by meaning, not just keywords:
 
@@ -173,7 +227,7 @@ curl -s -X POST http://localhost:8000/v1/my-org/search/semantic \
 
 ---
 
-## 8. Hybrid Search (Dense + BM25)
+## 9. Hybrid Search (Dense + BM25)
 
 Combines vector similarity with keyword matching for best results:
 
@@ -191,7 +245,7 @@ especially when your query contains specific technical terms.
 
 ---
 
-## 9. Find Similar Files
+## 10. Find Similar Files
 
 Given a file, find others with similar content:
 
@@ -202,7 +256,7 @@ curl -s "http://localhost:8000/v1/my-org/search/similar/FILE_ID?k=5" | python3 -
 
 ---
 
-## 10. RAG — Ask a Question
+## 11. RAG — Ask a Question
 
 Ask a natural language question and get an answer with source citations:
 
@@ -228,7 +282,7 @@ curl -s -X POST http://localhost:8000/v1/my-org/search/ask \
 
 ---
 
-## 11. Replace a File
+## 12. Replace a File
 
 Upload a new version of an existing file (triggers re-indexing):
 
@@ -239,7 +293,7 @@ curl -s -X PUT http://localhost:8000/v1/my-org/files/FILE_ID \
 
 ---
 
-## 12. Link Two Files (Binary-Text Pairing)
+## 13. Link Two Files (Binary-Text Pairing)
 
 Manually pair a binary file with its text counterpart:
 
@@ -251,7 +305,7 @@ curl -s -X POST http://localhost:8000/v1/my-org/files/BINARY_FILE_ID/link \
 
 ---
 
-## 13. Delete a File
+## 14. Delete a File
 
 Removes the file, its metadata, and all vectors from the search index:
 
@@ -267,7 +321,7 @@ curl -s http://localhost:8000/v1/my-org/files/FILE_ID
 
 ---
 
-## 14. Tenant Isolation Test
+## 15. Tenant Isolation Test
 
 Prove that tenants can't see each other's data:
 
@@ -298,7 +352,7 @@ curl -s -X POST http://localhost:8000/v1/tenant-b/search/semantic \
 
 ---
 
-## 15. Automated Seed & Demo
+## 16. Automated Seed & Demo
 
 Upload all sample files and run demo searches in one command:
 
@@ -312,19 +366,19 @@ python3 seed/upload_seed.py
 
 ---
 
-## 16. Run Unit Tests
+## 17. Run Unit Tests
 
 ```bash
 # Install dev dependencies (first time only)
 pip install -e ".[dev]"
 
-# Run all 24 unit tests
+# Run all unit tests
 python -m pytest tests/ -v
 ```
 
 ---
 
-## 17. Interactive API Docs
+## 18. Interactive API Docs
 
 Open your browser to the auto-generated Swagger UI:
 
