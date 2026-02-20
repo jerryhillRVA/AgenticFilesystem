@@ -1,0 +1,51 @@
+{
+  "application": {
+    "name": "Agentic Platform",
+    "version": "0.1.0",
+    "environment": "development"
+  },
+  "agents": {
+    "max_concurrent": 10,
+    "default_timeout_seconds": 300,
+    "retry_policy": {
+      "max_retries": 3,
+      "backoff_factor": 2,
+      "initial_delay_ms": 1000
+    }
+  },
+  "llm_providers": {
+    "openai": {
+      "models": ["gpt-4o", "gpt-4o-mini"],
+      "default_model": "gpt-4o-mini",
+      "max_tokens": 4096,
+      "temperature": 0.7
+    },
+    "anthropic": {
+      "models": ["claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
+      "default_model": "claude-sonnet-4-5-20250929",
+      "max_tokens": 8192,
+      "temperature": 0.3
+    }
+  },
+  "filesystem": {
+    "max_file_size_mb": 100,
+    "allowed_extensions": ["*"],
+    "indexing": {
+      "chunk_size_tokens": 512,
+      "chunk_overlap_percent": 10,
+      "embedding_model": "text-embedding-3-small",
+      "embedding_dimensions": 1536
+    }
+  },
+  "search": {
+    "default_k": 10,
+    "max_k": 100,
+    "hybrid_search_enabled": true,
+    "rag_max_context_chunks": 5
+  },
+  "monitoring": {
+    "log_level": "info",
+    "metrics_enabled": true,
+    "health_check_interval_seconds": 30
+  }
+}

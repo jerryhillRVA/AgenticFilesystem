@@ -1,0 +1,31 @@
+Meeting Notes - Sprint Planning
+Date: February 15, 2025
+Attendees: Sarah, Mike, Alex, Jordan
+
+AGENDA
+1. Review last sprint deliverables
+2. Plan upcoming sprint tasks
+3. Discuss technical debt items
+
+DISCUSSION
+
+Sarah opened the meeting by reviewing the completed work from the previous sprint. The file upload API is now fully functional with multipart support. Performance testing showed upload speeds of 50MB/s for large files.
+
+Mike presented the vector search implementation progress. The Qdrant integration is working well with both dense and sparse vectors. Hybrid search using Reciprocal Rank Fusion showed a 15% improvement in retrieval quality compared to dense-only search.
+
+Alex raised concerns about the text extraction pipeline. Apache Tika handles most document formats well, but some older PDF files with scanned images need OCR fallback via pytesseract. The team agreed to add Tesseract as a secondary extraction method.
+
+Jordan discussed the tenant isolation strategy. All vector payloads now include tenant_id, and every query enforces tenant filtering. Integration tests confirm that cross-tenant data leakage is not possible.
+
+ACTION ITEMS
+- Sarah: Implement file versioning (carry over to next sprint)
+- Mike: Add BM25 sparse vector support to the search API
+- Alex: Set up Tesseract OCR in the Docker image
+- Jordan: Write tenant isolation integration tests
+
+DECISIONS
+- We will use Redis Streams for the job queue instead of RabbitMQ
+- The chunk size will be 512 tokens with 10% overlap
+- OpenAI text-embedding-3-small will be our primary embedding model
+
+NEXT MEETING: February 22, 2025
