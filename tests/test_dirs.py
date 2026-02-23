@@ -173,3 +173,108 @@ def test_delete_nonempty_directory_fails(test_client):
     response = test_client.delete(f"/v1/test-tenant/dirs/occupied?namespace={unique_ns}")
     assert response.status_code == 409
     assert "not empty" in response.json()["detail"]
+
+
+def test_list_namespaces_empty(test_client):
+    """Tenant with no namespaces returns empty list."""
+    response = test_client.get("/v1/nonexistent-tenant/namespaces")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["namespaces"] == []
+    assert data["total"] == 0
+
+
+def test_list_namespaces_after_upload(test_client):
+    """Uploading files to different namespaces shows them in listing."""
+    ns1 = f"ns-{uuid.uuid4().hex[:8]}"
+    ns2 = f"ns-{uuid.uuid4().hex[:8]}"
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("a.txt", io.BytesIO(b"a"), "text/plain")},
+        data={"namespace": ns1},
+    )
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("b.txt", io.BytesIO(b"b"), "text/plain")},
+        data={"namespace": ns2},
+    )
+    response = test_client.get("/v1/test-tenant/namespaces")
+    assert response.status_code == 200
+    data = response.json()
+    assert ns1 in data["namespaces"]
+    assert ns2 in data["namespaces"]
+
+
+def test_list_root_directory_no_path(test_client):
+    """GET /v1/{tenant}/dirs (no path segment) lists namespace root."""
+    unique_ns = f"root-{uuid.uuid4().hex[:8]}"
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("root.txt", io.BytesIO(b"content"), "text/plain")},
+        data={"namespace": unique_ns},
+    )
+    # No trailing slash, no path segment
+    response = test_client.get(f"/v1/test-tenant/dirs?namespace={unique_ns}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["path"] == ""
+    assert data["total"] >= 1
+    names = [e["name"] for e in data["entries"]]
+    assert "root.txt" in names
+
+
+def test_recursive_listing(test_client):
+    """recursive=true returns flat list of all nested entries."""
+    unique_ns = f"recurse-{uuid.uuid4().hex[:8]}"
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("a.txt", io.BytesIO(b"a"), "text/plain")},
+        data={"namespace": unique_ns},
+    )
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("b.txt", io.BytesIO(b"b"), "text/plain")},
+        data={"namespace": unique_ns, "path": "sub"},
+    )
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("c.txt", io.BytesIO(b"c"), "text/plain")},
+        data={"namespace": unique_ns, "path": "sub/deep"},
+    )
+
+    response = test_client.get(
+        f"/v1/test-tenant/dirs?namespace={unique_ns}&recursive=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    names = [e["name"] for e in data["entries"]]
+    # All three files should appear
+    assert "a.txt" in names
+    assert "b.txt" in names
+    assert "c.txt" in names
+    # Directory entries should also appear
+    paths = [e["path"] for e in data["entries"]]
+    assert "sub" in paths
+    assert "sub/deep" in paths
+
+
+def test_recursive_false_default(test_client):
+    """recursive defaults to false, only shows immediate children."""
+    unique_ns = f"norecurse-{uuid.uuid4().hex[:8]}"
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("top.txt", io.BytesIO(b"top"), "text/plain")},
+        data={"namespace": unique_ns},
+    )
+    test_client.post(
+        "/v1/test-tenant/files",
+        files={"file": ("nested.txt", io.BytesIO(b"nested"), "text/plain")},
+        data={"namespace": unique_ns, "path": "child"},
+    )
+    response = test_client.get(f"/v1/test-tenant/dirs?namespace={unique_ns}")
+    assert response.status_code == 200
+    data = response.json()
+    names = [e["name"] for e in data["entries"]]
+    assert "top.txt" in names
+    assert "child" in names
+    assert "nested.txt" not in names

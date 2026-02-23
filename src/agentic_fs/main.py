@@ -70,6 +70,13 @@ Tenant-scoped file storage and semantic search API designed for AI agent workflo
 
 OPENAPI_TAGS = [
     {
+        "name": "admin",
+        "description": (
+            "Administrative and introspection endpoints for troubleshooting. "
+            "List tenants, namespaces, and other system-level information."
+        ),
+    },
+    {
         "name": "files",
         "description": (
             "Upload, download, replace, move, and delete files. Every file is stored under a "

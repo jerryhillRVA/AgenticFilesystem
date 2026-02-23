@@ -265,6 +265,40 @@ class FileStore:
         os.rmdir(ns_dir)
         return True
 
+    def list_tenants(self) -> list[str]:
+        """Return sorted list of tenant directory names under base_path."""
+        if not os.path.isdir(self.base_path):
+            return []
+        return sorted(
+            item for item in os.listdir(self.base_path)
+            if os.path.isdir(os.path.join(self.base_path, item))
+        )
+
+    def list_namespaces(self, tenant: str) -> list[str]:
+        """Return sorted list of namespace names for a tenant."""
+        ns_root = os.path.join(self._tenant_dir(tenant), "ns")
+        if not os.path.isdir(ns_root):
+            return []
+        return sorted(
+            item for item in os.listdir(ns_root)
+            if os.path.isdir(os.path.join(ns_root, item))
+        )
+
+    def list_directory_recursive(
+        self, tenant: str, namespace: str = "default", path: str = ""
+    ) -> list[DirEntry]:
+        """Recursively list all files and directories, returning a flat list with full paths."""
+        entries = self.list_directory(tenant, namespace=namespace, path=path)
+        result = []
+        for entry in entries:
+            result.append(entry)
+            if entry.type == "directory" and entry.path:
+                sub_entries = self.list_directory_recursive(
+                    tenant, namespace=namespace, path=entry.path
+                )
+                result.extend(sub_entries)
+        return result
+
     def get_file_path(self, tenant: str, file_id: str) -> str:
         file_dir = self._file_dir(tenant, file_id)
         if not os.path.isdir(file_dir):
