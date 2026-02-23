@@ -8,6 +8,7 @@
 #   ./dockerStart.sh --stop        Stop all services
 #   ./dockerStart.sh --logs        Tail logs from all services
 #   ./dockerStart.sh --logs api    Tail logs from a specific service
+#   ./dockerStart.sh --clean       Wipe all data (volumes) and restart fresh
 #   ./dockerStart.sh --status      Show service status
 #
 set -e
@@ -106,13 +107,27 @@ do_rebuild() {
     docker compose ps
 }
 
+do_clean() {
+    print_banner
+    echo -e "${RED}Wiping all data and restarting fresh...${NC}"
+    echo -e "${YELLOW}This will delete: uploaded files, Qdrant vectors, Redis state${NC}"
+    docker compose down -v
+    echo -e "${GREEN}Volumes removed.${NC}"
+    echo ""
+    echo -e "${GREEN}Starting fresh services...${NC}"
+    docker compose up -d --build
+    echo ""
+    wait_for_healthy
+    docker compose ps
+}
+
 do_stop() {
     print_banner
     echo -e "${RED}Stopping services...${NC}"
     docker compose down
     echo -e "${GREEN}All services stopped.${NC}"
     echo ""
-    echo -e "  To also remove volumes (${RED}deletes all data${NC}): docker compose down -v"
+    echo -e "  To also remove volumes (${RED}deletes all data${NC}): ./dockerStart.sh --clean"
 }
 
 do_logs() {
@@ -160,6 +175,9 @@ case "${1}" in
     --rebuild)
         do_rebuild
         ;;
+    --clean)
+        do_clean
+        ;;
     --stop)
         do_stop
         ;;
@@ -170,10 +188,11 @@ case "${1}" in
         do_status
         ;;
     *)
-        echo "Usage: $0 {--start|--rebuild|--stop|--logs [service]|--status}"
+        echo "Usage: $0 {--start|--rebuild|--clean|--stop|--logs [service]|--status}"
         echo ""
         echo "  --start       Start all services (build if images missing)"
         echo "  --rebuild     Force rebuild all images and restart"
+        echo "  --clean       Wipe all data (volumes) and restart fresh"
         echo "  --stop        Stop all services"
         echo "  --logs        Tail logs from all services"
         echo "  --logs api    Tail logs from a specific service (api|worker|qdrant|redis|tika)"
