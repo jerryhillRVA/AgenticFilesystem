@@ -1,7 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from agentic_fs.config import settings
@@ -133,6 +135,9 @@ app = FastAPI(
 
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_request)
 app.include_router(api_router)
+
+admin_dir = Path(__file__).parent / "admin"
+app.mount("/admin", StaticFiles(directory=str(admin_dir), html=True), name="admin")
 
 
 @app.get("/health")

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Filesystem — Admin UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M2 8h20"/></svg></div>
+      <h1>Agentic FS</h1>
+      <span class="version">v0.1</span>
+    </div>
+
+    <div class="tenant-selector">
+      <label>Active Tenant</label>
+      <select id="sidebarTenantSelect" onchange="switchTenant(this.value)">
+        <option value="">— Select Tenant —</option>
+      </select>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section" id="nav-workspace">
+        <div class="nav-section-header" onclick="toggleNavSection('nav-workspace')">
+          <span class="nav-section-label">Workspace</span>
+          <svg class="nav-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item active" data-page="tenants" onclick="showPage('tenants',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Tenants <span class="badge" id="tenantCountBadge">0</span>
+          </div>
+          <div class="nav-item" data-page="explorer" onclick="showPage('explorer',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            File Explorer
+          </div>
+          <div class="nav-item" data-page="search" onclick="showPage('search',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search &amp; RAG
+          </div>
+          <div class="nav-item" data-page="upload" onclick="showPage('upload',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Files
+          </div>
+        </div>
+      </div>
+      <div class="nav-section" id="nav-tenant-admin">
+        <div class="nav-section-header" onclick="toggleNavSection('nav-tenant-admin')">
+          <span class="nav-section-label">Tenant Admin</span>
+          <svg class="nav-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="tenant-settings" onclick="showPage('tenant-settings',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Tenant Settings
+            <span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+          </div>
+          <div class="nav-item" data-page="tenant-users" onclick="showPage('tenant-users',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Users &amp; Keys
+            <span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+          </div>
+        </div>
+      </div>
+      <div class="nav-section" id="nav-sys-admin">
+        <div class="nav-section-header" onclick="toggleNavSection('nav-sys-admin')">
+          <span class="nav-section-label">System Admin</span>
+          <svg class="nav-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="sys-settings" onclick="showPage('sys-settings',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            System Settings
+            <span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+          </div>
+          <div class="nav-item" data-page="sys-accounts" onclick="showPage('sys-accounts',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Accounts
+            <span class="lock-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-breadcrumb" id="breadcrumb">
+        <span class="crumb current">Tenants</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+          <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+        <div class="topbar-user">
+          <div class="avatar">A</div>
+          <div><div class="user-name">Admin</div><div class="user-role">System Admin</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="apiErrorBanner" class="error-banner" style="display:none">
+        Cannot connect to API at <span id="apiErrorUrl"></span>. Is the server running?
+      </div>
+
+      <!-- ═══════════ TENANTS PAGE ═══════════ -->
+      <div class="page active" id="page-tenants">
+        <div class="page-header"><h2>Tenants</h2><p>Select a tenant to browse files, search, or manage settings.</p></div>
+        <div class="grid-3" style="margin-bottom:18px">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(99,102,241,0.12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="stat-label">Total Tenants</div><div class="stat-value" style="color:var(--accent)" id="statTotalTenants">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(52,211,153,0.12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
+            <div class="stat-label">Files Indexed</div><div class="stat-value" style="color:var(--accent-green)" id="statFilesIndexed">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(167,139,250,0.12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-violet)" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>
+            <div class="stat-label">Total Storage</div><div class="stat-value" style="color:var(--accent-violet)" id="statTotalStorage">—</div>
+          </div>
+        </div>
+        <div class="grid-3" id="tenantCards">
+          <div class="loading-spinner">Loading tenants...</div>
+        </div>
+      </div>
+
+      <!-- ═══════════ FILE EXPLORER ═══════════ -->
+      <div class="page" id="page-explorer">
+        <div class="explorer-layout">
+          <div class="explorer-tree">
+            <div class="tree-header">Namespaces & Folders
+              <button class="btn-icon" title="Refresh" onclick="loadExplorerPage()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
+            </div>
+            <div id="treeContainer">
+              <div class="loading-spinner">Loading...</div>
+            </div>
+          </div>
+          <div class="explorer-files">
+            <div class="file-list-header">
+              <div class="path-display" id="explorerPath">Select a tenant</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm btn-secondary" onclick="showPage('upload',document.querySelector('[data-page=upload]'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</button>
+                <button class="btn btn-sm btn-secondary" onclick="handleNewFolder()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Folder</button>
+              </div>
+            </div>
+            <div class="file-grid" id="fileGrid">
+              <div class="empty-state">Select a namespace to browse files</div>
+            </div>
+          </div>
+          <!-- Preview backdrop + sliding panel -->
+          <div class="preview-backdrop" id="previewBackdrop" onclick="closePreview()"></div>
+          <div class="preview-panel" id="previewPanel">
+            <button class="preview-close" onclick="closePreview()" title="Close preview (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <div class="preview-header"><h4 id="previewTitle">—</h4><div class="preview-path" id="previewPathText"></div></div>
+            <div class="preview-meta" id="previewMeta"></div>
+            <div class="preview-content"><pre id="previewContentText"></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ SEARCH & RAG PAGE ═══════════ -->
+      <div class="page" id="page-search">
+        <div class="search-container">
+          <div class="page-header"><h2>Search &amp; RAG</h2><p>Test search and retrieval-augmented generation against indexed files.</p></div>
+          <div class="mode-tabs">
+            <div class="mode-tab" data-mode="semantic" onclick="setSearchMode('semantic',this)">Semantic<div class="tip"><strong>Semantic Search</strong><br>Pure vector similarity using cosine distance on embeddings. Best for conceptual queries where meaning matters more than exact wording.</div></div>
+            <div class="mode-tab active" data-mode="hybrid" onclick="setSearchMode('hybrid',this)">Hybrid (Default)<div class="tip"><strong>Hybrid Search (Recommended)</strong><br>Combines vector similarity with BM25 keyword matching via Reciprocal Rank Fusion. Best default for mixed queries with concepts and specific terms.</div></div>
+            <div class="mode-tab" data-mode="similar" onclick="setSearchMode('similar',this)">Find Similar<div class="tip"><strong>Find Similar</strong><br>Find files similar to a known file by vector proximity. Enter a file_id to discover related content.</div></div>
+            <div class="mode-tab" data-mode="rag" onclick="setSearchMode('rag',this)">RAG (Ask)<div class="tip"><strong>Retrieval-Augmented Generation</strong><br>Ask a question, get a synthesized natural-language answer with source citations. Uses hybrid search + LLM.</div></div>
+          </div>
+          <div class="search-box" id="searchBoxWrap">
+            <div class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <input type="text" id="searchInput" placeholder="Enter your search query..." onkeydown="if(event.key==='Enter')executeSearch()">
+          </div>
+          <div id="similarInput" style="display:none;margin-bottom:16px">
+            <div class="search-opt-group">
+              <label>Source File ID <span class="help-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="tip-text">Enter the file_id of a known indexed file. The system will find other files with similar content.</span></span></label>
+              <input type="text" id="similarFileIdInput" placeholder="e.g. a3f8c2d1-4b5e-..." style="width:400px;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')executeSearch()">
+            </div>
+          </div>
+          <div class="search-options">
+            <div class="search-opt-group"><label>Results (k) <span class="help-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="tip-text">Number of result chunks. 3-5 for precise, 10-20 for broad discovery. For RAG, 3-7 is best.</span></span></label><select id="searchK" style="min-width:130px"><option value="3">3 — Focused</option><option value="5" selected>5 — Balanced</option><option value="10">10 — Broad</option><option value="20">20 — Discovery</option></select></div>
+            <div class="search-opt-group"><label>Namespace <span class="help-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="tip-text">Restrict search to a specific namespace. Leave as "All" to search everything.</span></span></label><select id="searchNamespace" style="min-width:140px"><option value="">All Namespaces</option></select></div>
+            <div class="search-opt-group"><label>Path Filter <span class="help-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="tip-text">Restrict to files at or below this path (prefix match). E.g. 'architecture/'.</span></span></label><input type="text" id="searchPath" placeholder="e.g. architecture/" style="min-width:140px"></div>
+            <div class="search-opt-group" style="margin-left:auto"><label>&nbsp;</label><button class="btn btn-primary" onclick="executeSearch()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search</button></div>
+          </div>
+          <div class="rag-extras" id="ragExtras" style="display:none">
+            <label>System Prompt (optional) <span class="help-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="tip-text">Override the default LLM system prompt. Customize answer style, length, or domain focus.</span></span></label>
+            <textarea id="ragSystemPrompt" placeholder="You are a helpful assistant that answers questions based on the provided context..."></textarea>
+          </div>
+          <div class="rag-answer" id="ragAnswer" style="display:none">
+            <div class="rag-answer-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Generated Answer</div>
+            <div class="rag-answer-text" id="ragAnswerText"></div>
+            <div class="rag-sources-label">Sources used:</div>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ UPLOAD PAGE ═══════════ -->
+      <div class="page" id="page-upload">
+        <div style="max-width:680px">
+          <div class="page-header"><h2>Upload Files</h2><p>Upload files to the current tenant for indexing and search.</p></div>
+          <div class="card">
+            <div class="upload-drop" id="uploadDrop">
+              <input type="file" id="fileInput" multiple style="display:none">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom:10px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drag &amp; drop files here or click to browse</div>
+              <div style="font-size:11px;color:var(--text-muted)">Supports text, JSON, PDF, DOCX, images, and more</div>
+            </div>
+            <div style="margin-top:18px">
+              <div class="grid-2">
+                <div class="search-opt-group"><label>Namespace</label><select id="uploadNamespace"><option value="default">default</option></select></div>
+                <div class="search-opt-group"><label>Tags (comma-separated)</label><input type="text" id="uploadTags" placeholder="e.g. report, quarterly, 2025" style="width:100%"></div>
+              </div>
+              <div style="margin-top:12px">
+                <label style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px">Destination Path</label>
+                <div class="grid-2" style="gap:8px">
+                  <input type="text" id="uploadPathInput" placeholder="Type path, e.g. architecture/v2" style="width:100%">
+                  <div class="folder-picker">
+                    <button class="folder-picker-toggle" onclick="toggleFolderPicker()">
+                      <span id="fpSelectedText" style="color:var(--text-muted)">Or browse folders...</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="folder-picker-dropdown" id="fpDropdown"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:16px;text-align:right"><button class="btn btn-primary" onclick="handleUploadClick()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Files</button></div>
+            </div>
+            <div id="uploadResults"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ TENANT SETTINGS (Stub) ═══════════ -->
+      <div class="page" id="page-tenant-settings">
+        <div style="max-width:760px">
+          <div class="page-header"><h2>Tenant Settings</h2><p>Configure settings for the current tenant. <span class="role-badge role-tenantadmin">Tenant Admin</span></p></div>
+          <div class="tab-group"><div class="tab active">General</div><div class="tab">Indexing</div><div class="tab">Integrations</div></div>
+          <div class="stub-overlay"><div class="card"><div class="settings-section"><h3>General</h3><p>Basic tenant configuration</p><div class="setting-row"><div class="setting-label"><div class="name">Tenant Name</div><div class="desc">Display name</div></div><div class="setting-control"><input type="text" value="acme-corp" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Default Namespace</div><div class="desc">Namespace when none specified</div></div><div class="setting-control"><input type="text" value="default" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Max File Size</div><div class="desc">Maximum per uploaded file</div></div><div class="setting-control"><input type="text" value="50 MB" disabled></div></div></div><div class="settings-section"><h3>Indexing</h3><p>How files are processed</p><div class="setting-row"><div class="setting-label"><div class="name">Chunk Size</div><div class="desc">Tokens per chunk</div></div><div class="setting-control"><input type="number" value="512" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Embedding Model</div><div class="desc">OpenAI model for vectors</div></div><div class="setting-control"><input type="text" value="text-embedding-3-small" disabled></div></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ USERS & API KEYS (Stub) ═══════════ -->
+      <div class="page" id="page-tenant-users">
+        <div style="max-width:860px">
+          <div class="page-header"><h2>Users &amp; API Keys</h2><p>Manage users and API keys. <span class="role-badge role-tenantadmin">Tenant Admin</span></p></div>
+          <div class="tab-group"><div class="tab active">Users</div><div class="tab">API Keys</div></div>
+          <div class="stub-overlay"><div class="card"><div class="card-header"><h3>Tenant Users</h3><button class="btn btn-primary btn-sm"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add User</button></div><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Active</th></tr></thead><tbody><tr><td>Admin User</td><td>admin@example.com</td><td><span class="role-badge role-tenantadmin">Tenant Admin</span></td><td><span class="status status-active">Active</span></td><td>Just now</td></tr><tr><td>Alice Chen</td><td>alice@example.com</td><td><span class="role-badge role-user">User</span></td><td><span class="status status-active">Active</span></td><td>2 hours ago</td></tr><tr><td>Bob Ramirez</td><td>bob@example.com</td><td><span class="role-badge role-user">User</span></td><td><span class="status status-active">Active</span></td><td>1 day ago</td></tr></tbody></table></div><div class="card" style="margin-top:14px"><div class="card-header"><h3>API Keys</h3><button class="btn btn-primary btn-sm"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Generate Key</button></div><table><thead><tr><th>Name</th><th>Key</th><th>Scopes</th><th>Created</th><th></th></tr></thead><tbody><tr><td>Production Agent</td><td><code>afs_live_a3f8...c2d1</code></td><td>read, write, search</td><td>2026-01-15</td><td><button class="btn btn-danger btn-sm">Revoke</button></td></tr><tr><td>Dev Testing</td><td><code>afs_test_b7e4...f91a</code></td><td>read, search</td><td>2026-02-20</td><td><button class="btn btn-danger btn-sm">Revoke</button></td></tr></tbody></table></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ SYSTEM SETTINGS (Stub) ═══════════ -->
+      <div class="page" id="page-sys-settings">
+        <div style="max-width:760px">
+          <div class="page-header"><h2>System Settings</h2><p>Global platform configuration. <span class="role-badge role-sysadmin">System Admin</span></p></div>
+          <div class="tab-group"><div class="tab active">Infrastructure</div><div class="tab">Models</div><div class="tab">Security</div></div>
+          <div class="stub-overlay"><div class="card"><div class="settings-section"><h3>Infrastructure</h3><p>Core service connections</p><div class="setting-row"><div class="setting-label"><div class="name">Qdrant URL</div><div class="desc">Vector database</div></div><div class="setting-control"><input type="text" value="http://qdrant:6333" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Redis URL</div><div class="desc">Celery broker</div></div><div class="setting-control"><input type="text" value="redis://redis:6379/0" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Tika URL</div><div class="desc">Text extraction</div></div><div class="setting-control"><input type="text" value="http://tika:9998" disabled></div></div></div><div class="settings-section"><h3>Models</h3><p>AI model settings</p><div class="setting-row"><div class="setting-label"><div class="name">OpenAI Key</div><div class="desc">Embeddings & chat</div></div><div class="setting-control"><div class="api-key-display"><span class="key-text">sk-...redacted</span><button class="btn btn-sm btn-secondary">Reveal</button></div></div></div><div class="setting-row"><div class="setting-label"><div class="name">Embedding Model</div><div class="desc">Vector generation</div></div><div class="setting-control"><input type="text" value="text-embedding-3-small" disabled></div></div><div class="setting-row"><div class="setting-label"><div class="name">Chat Model</div><div class="desc">RAG completions</div></div><div class="setting-control"><input type="text" value="gpt-4o-mini" disabled></div></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ ACCOUNTS & TENANTS (Stub) ═══════════ -->
+      <div class="page" id="page-sys-accounts">
+        <div style="max-width:860px">
+          <div class="page-header"><h2>Accounts &amp; Tenants</h2><p>Manage tenant accounts and system users. <span class="role-badge role-sysadmin">System Admin</span></p></div>
+          <div class="tab-group"><div class="tab active">Tenants</div><div class="tab">System Users</div></div>
+          <div class="stub-overlay"><div class="card"><div class="card-header"><h3>All Tenants</h3><button class="btn btn-primary btn-sm"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Tenant</button></div><table><thead><tr><th>Tenant</th><th>Files</th><th>Storage</th><th>Namespaces</th><th>Status</th><th>Created</th></tr></thead><tbody><tr><td><strong>example-tenant</strong></td><td>—</td><td>—</td><td>—</td><td><span class="status status-active">Active</span></td><td>—</td></tr></tbody></table></div><div class="card" style="margin-top:14px"><div class="card-header"><h3>System Users</h3><button class="btn btn-primary btn-sm"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add System User</button></div><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Tenant Access</th><th>Status</th></tr></thead><tbody><tr><td>Admin</td><td>admin@agentic.io</td><td><span class="role-badge role-sysadmin">System Admin</span></td><td>All</td><td><span class="status status-active">Active</span></td></tr></tbody></table></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
