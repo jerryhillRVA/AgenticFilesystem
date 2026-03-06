@@ -39,13 +39,39 @@ async def upload_file(
     """
     fs = get_file_store()
     content = await file.read()
+    filename = file.filename or "unnamed"
 
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+    # Check for existing file with same (namespace, path, filename)
+    existing_file_id = fs.find_existing_file(tenant, namespace, path, filename)
+
+    if existing_file_id is not None:
+        try:
+            metadata = fs.replace_file(tenant, existing_file_id, content, filename)
+        except FileNotFoundError:
+            existing_file_id = None
+
+    if existing_file_id is not None:
+        if tag_list:
+            metadata = fs.update_metadata(tenant, existing_file_id, tags=tag_list)
+
+        delete_vectors.delay(tenant, existing_file_id)
+        index_file.delay(tenant, existing_file_id)
+
+        return FileUploadResponse(
+            file_id=metadata.file_id,
+            filename=metadata.filename,
+            mime_type=metadata.mime_type,
+            size_bytes=metadata.size_bytes,
+            indexing_status="pending",
+            message="File replaced (duplicate filename detected). Re-indexing in progress.",
+        )
 
     metadata = fs.save_file(
         tenant=tenant,
         content=content,
-        filename=file.filename or "unnamed",
+        filename=filename,
         namespace=namespace,
         path=path,
         tags=tag_list,
@@ -207,6 +233,18 @@ async def move_file(tenant: str, file_id: str, body: FileMoveRequest):
     a wiki namespace.
     """
     fs = get_file_store()
+    try:
+        metadata = fs.get_metadata(tenant, file_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Check for a conflicting file at the destination
+    target_namespace = body.new_namespace or metadata.namespace
+    conflict_id = fs.find_existing_file(tenant, target_namespace, body.new_path, metadata.filename)
+    if conflict_id and conflict_id != file_id:
+        fs.delete_file(tenant, conflict_id)
+        delete_vectors.delay(tenant, conflict_id)
+
     try:
         updated = fs.move_file(tenant, file_id, body.new_path, body.new_namespace)
     except FileNotFoundError:

@@ -27,6 +27,34 @@ class FileStore:
                     parts.append(sanitize_path_component(p))
         return os.path.join(*parts)
 
+    def find_existing_file(
+        self,
+        tenant: str,
+        namespace: str,
+        path: str,
+        filename: str,
+    ) -> str | None:
+        """Return the file_id of an existing file with matching (namespace, path, filename), or None."""
+        ns_dir = self._namespace_dir(tenant, namespace, path)
+        if not os.path.isdir(ns_dir):
+            return None
+
+        for item in os.listdir(ns_dir):
+            if not item.endswith(".ref"):
+                continue
+            ref_path = os.path.join(ns_dir, item)
+            try:
+                with open(ref_path) as f:
+                    ref = json.load(f)
+                if ref.get("filename") == filename:
+                    file_dir = self._file_dir(tenant, ref["file_id"])
+                    if os.path.isdir(file_dir):
+                        return ref["file_id"]
+            except (json.JSONDecodeError, KeyError, OSError):
+                continue
+
+        return None
+
     def save_file(
         self,
         tenant: str,
