@@ -32,9 +32,11 @@ This is the **Agentic Filesystem** — a tenant-scoped file storage and semantic
 
 ### File Storage
 - No database — metadata is in `.metadata` JSON sidecar files
-- Path: `{FILESTORE_BASE_PATH}/{tenant}/files/{file_id}/{filename}`
-- Meta: `{FILESTORE_BASE_PATH}/{tenant}/files/{file_id}/{filename}.metadata`
-- Namespace directory: `{FILESTORE_BASE_PATH}/{tenant}/ns/{namespace}/` (reference files)
+- Content: `{FILESTORE_BASE_PATH}/{tenant}/files/{file_id}/{filename}`
+- Metadata: `{FILESTORE_BASE_PATH}/{tenant}/files/{file_id}/{filename}.metadata`
+- Namespace ref: `{FILESTORE_BASE_PATH}/{tenant}/ns/{namespace}/{path}/{file_id}.ref`
+- Ref files are JSON pointers: `{"file_id": "...", "filename": "..."}`
+- Directory listings scan `.ref` files; actual content lives in `files/{file_id}/`
 
 ### Search Modes
 - **Dense**: Cosine similarity on 1536-dim vectors
@@ -50,20 +52,23 @@ src/agentic_fs/
 ├── config.py         # Pydantic Settings, reads .env
 ├── dependencies.py   # DI via @lru_cache factories
 ├── api/
-│   ├── router.py     # Aggregates file, dir, search, batch routers
-│   ├── files.py      # File CRUD: upload, download, replace, delete, link
+│   ├── router.py     # Aggregates file, dir, search, batch, admin routers
+│   ├── files.py      # File CRUD: upload (with dedup), download, replace, delete, link, move
 │   ├── batch.py      # Batch file retrieval (metadata + content)
-│   ├── dirs.py       # Directory listing
+│   ├── dirs.py       # Directory listing, create, delete, namespaces
 │   ├── search.py     # Semantic, hybrid, similar, RAG, status
+│   ├── admin.py      # Admin: list tenants, deduplication scan/cleanup
 │   └── middleware.py  # Request logging
 ├── models/
 │   ├── file.py       # FileMetadata, FileUploadResponse, DirEntry, etc.
 │   ├── batch.py      # BatchRetrieveRequest/Response, BatchFileEntry
 │   ├── search.py     # SearchRequest/Response, RAGRequest/Response
+│   ├── admin.py      # TenantListResponse, DeduplicationResponse
 │   └── common.py     # Shared models
 ├── services/
-│   ├── file_store.py     # Filesystem abstraction (save, get, delete, list)
+│   ├── file_store.py     # Filesystem abstraction (save, get, delete, list, find_existing_file)
 │   ├── batch.py          # Batch retrieval logic (multi-file content fetch)
+│   ├── dedup.py          # DeduplicationService: scan + cleanup duplicate files
 │   ├── metadata_store.py # Read/write .metadata JSON files
 │   ├── vector_store.py   # Qdrant client (collection setup, upsert, search, delete)
 │   ├── embedding.py      # OpenAI embedding client with retry
@@ -87,6 +92,9 @@ src/agentic_fs/
 - **Deterministic point IDs**: `uuid5(file_id:chunk_idx)` — re-indexing is idempotent
 - **Payload filtering**: Qdrant tenant isolation via `tenant_id` in every point payload
 - **Async pipeline**: Celery tasks for indexing, decoupled from API response
+- **Dedup on upload**: `FileStore.find_existing_file()` scans `.ref` files in the target namespace dir. If a match is found (same namespace + path + filename), the upload delegates to `replace_file()` — same `file_id`, content overwritten, re-indexed. No duplicate entries created.
+- **Move-file overwrite**: Moving a file to a location where a same-named file already exists auto-deletes the conflicting file and its vectors before placing the moved file.
+- **Admin dedup cleanup**: `DeduplicationService` walks all namespace directories, groups `.ref` files by `(tenant, namespace, path, filename)`, and deletes older copies. Available via `POST /admin/dedup`.
 - **Module-level settings access**: `dependencies.py` uses `agentic_fs.config.settings` (not `from ... import settings`) so that `importlib.reload(config)` in tests works correctly. New modules should follow this pattern.
 - **Test isolation**: `conftest.py` reloads `config`, clears all `@lru_cache` deps. When adding a new cached dependency, add its `cache_clear()` to both setup and teardown in conftest.
 
@@ -129,6 +137,13 @@ pytest tests/test_integration.py -v            # Integration tests (needs Docker
 2. Add endpoint in `api/search.py`
 3. Add query method in `services/vector_store.py`
 4. Test with `tests/test_search.py`
+
+## Adding a New Admin Endpoint
+
+1. Add the endpoint function in `api/admin.py`
+2. Add Pydantic request/response models in `models/admin.py`
+3. The admin router is already registered in `api/router.py`
+4. Test with `tests/test_admin.py`
 
 ## MVP Limitations (to be addressed later)
 

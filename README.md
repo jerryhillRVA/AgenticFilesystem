@@ -91,9 +91,10 @@ Clients (Agents / Web UI / API)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/v1/{tenant}/dirs/{path}` | List directory contents |
+| `GET` | `/v1/{tenant}/dirs/{path}` | List directory contents (`?recursive=true` for flat tree) |
 | `POST` | `/v1/{tenant}/dirs` | Create a directory |
 | `DELETE` | `/v1/{tenant}/dirs/{path}` | Delete an empty directory |
+| `GET` | `/v1/{tenant}/namespaces` | List all namespaces for a tenant |
 
 ### Search Operations
 
@@ -104,6 +105,13 @@ Clients (Agents / Web UI / API)
 | `GET` | `/v1/{tenant}/search/similar/{id}` | Find similar files |
 | `POST` | `/v1/{tenant}/search/ask` | RAG: answer + sources |
 | `GET` | `/v1/{tenant}/search/status/{id}` | Check indexing status |
+
+### Admin Operations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/tenants` | List all tenants with data |
+| `POST` | `/admin/dedup` | Scan/remove duplicate files (`?dry_run=true`) |
 
 ### Examples
 
@@ -179,6 +187,71 @@ curl http://localhost:8000/v1/my-tenant/dirs/?namespace=project
 curl http://localhost:8000/v1/my-tenant/dirs/sprints/sprint-2?namespace=project
 ```
 
+**Recursive directory listing** (flat list of all files and dirs):
+```bash
+curl "http://localhost:8000/v1/my-tenant/dirs/?namespace=project&recursive=true"
+```
+
+**List namespaces:**
+```bash
+curl http://localhost:8000/v1/my-tenant/namespaces
+```
+
+**List tenants:**
+```bash
+curl http://localhost:8000/admin/tenants
+```
+
+**Scan for duplicate files** (dry run — no deletions):
+```bash
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=true"
+```
+
+**Remove duplicate files** (keeps newest, deletes older copies):
+```bash
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=false"
+```
+
+## Deduplication
+
+Uploading a file with the same **filename**, **namespace**, and **path** as an existing file automatically replaces it — the `file_id` stays the same, the content is updated, and the file is re-indexed. No duplicate entries are created.
+
+Moving a file to a destination where a same-named file already exists also overwrites the existing file at that location.
+
+If duplicates accumulated before this behavior was added, use the admin dedup endpoint to clean them up:
+
+```bash
+# 1. Scan for duplicates (dry run — reports without deleting)
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=true"
+
+# 2. Review the response — check groups[].file_ids and groups[].keep
+# 3. Remove duplicates (keeps newest by updated_at timestamp)
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=false"
+```
+
+## File Path Structure
+
+All data is stored on the local filesystem — no SQL database. The layout:
+
+```
+{FILESTORE_BASE_PATH}/
+└── {tenant}/
+    ├── files/
+    │   └── {file_id}/                  # One directory per file (keyed by UUID)
+    │       ├── {filename}              # Actual file content
+    │       └── {filename}.metadata     # JSON sidecar with FileMetadata
+    │
+    └── ns/                             # Namespace hierarchy
+        └── {namespace}/
+            └── {path}/                 # Nested subdirectories
+                └── {file_id}.ref       # JSON pointer: {"file_id": "...", "filename": "..."}
+```
+
+- **File content** is stored in `files/{file_id}/` — the directory name is the UUID, not the filename
+- **Metadata** is a `.metadata` JSON sidecar alongside the file content
+- **`.ref` files** in namespace directories link the browsable directory tree to actual file storage
+- Moving or renaming a file updates the `.ref` file location; the `files/{file_id}/` directory stays put
+
 ## Seed Data
 
 Generate binary test files and upload seed data:
@@ -233,13 +306,15 @@ src/agentic_fs/
 ├── main.py           # FastAPI app + lifespan
 ├── config.py         # Settings from .env
 ├── api/              # REST endpoints
-│   ├── files.py      # File CRUD
+│   ├── files.py      # File CRUD + dedup-on-upload
 │   ├── batch.py      # Batch file retrieval
 │   ├── search.py     # Search + RAG
-│   └── dirs.py       # Directory listing, create, delete
+│   ├── dirs.py       # Directory listing, create, delete
+│   └── admin.py      # Admin: tenants, deduplication
 ├── services/         # Business logic
-│   ├── file_store.py # Local filesystem ops
+│   ├── file_store.py # Local filesystem ops + find_existing_file
 │   ├── batch.py      # Batch retrieval logic
+│   ├── dedup.py      # Duplicate file scan + cleanup
 │   ├── vector_store.py # Qdrant integration
 │   ├── embedding.py  # OpenAI embeddings
 │   ├── chunker.py    # Text chunking

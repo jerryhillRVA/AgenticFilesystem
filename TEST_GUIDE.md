@@ -475,6 +475,136 @@ You can try every endpoint interactively — upload files, run searches, etc.
 
 ---
 
+## 19. Deduplication
+
+Uploading the same filename to the same namespace and path replaces the existing file automatically.
+
+### Upload a file twice — same file_id returned
+```bash
+# First upload
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/architecture.md" \
+  -F "namespace=dedup-test"
+# Note the file_id
+
+# Upload again — same namespace, same filename
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/architecture.md" \
+  -F "namespace=dedup-test"
+# Same file_id, content replaced, re-indexed
+```
+
+### Directory listing shows only one entry
+```bash
+curl -s "http://localhost:8000/v1/my-org/dirs/?namespace=dedup-test" | python3 -m json.tool
+# Only one file entry — no duplicates
+```
+
+### Different paths or namespaces create separate files
+```bash
+# These are two different files (different paths)
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/architecture.md" \
+  -F "namespace=dedup-test" \
+  -F "path=folder-a"
+
+curl -s -X POST http://localhost:8000/v1/my-org/files \
+  -F "file=@seed/files/docs/architecture.md" \
+  -F "namespace=dedup-test" \
+  -F "path=folder-b"
+```
+
+---
+
+## 20. Admin — List Tenants
+
+```bash
+curl -s http://localhost:8000/admin/tenants | python3 -m json.tool
+```
+
+Response:
+```json
+{
+  "tenants": ["my-org", "tenant-a", "tenant-b"],
+  "total": 3
+}
+```
+
+---
+
+## 21. Admin — Deduplicate Files
+
+Clean up duplicate files that may have accumulated before dedup-on-upload was added.
+
+### Dry run — scan without deleting
+```bash
+curl -s -X POST "http://localhost:8000/admin/dedup?tenant=my-org&dry_run=true" | python3 -m json.tool
+```
+
+Response:
+```json
+{
+  "tenants_scanned": 1,
+  "duplicate_groups_found": 2,
+  "files_removed": 3,
+  "dry_run": true,
+  "errors": [],
+  "groups": [
+    {
+      "tenant": "my-org",
+      "namespace": "docs",
+      "path": "",
+      "filename": "architecture.md",
+      "file_ids": ["abc-111", "abc-222", "abc-333"],
+      "keep": "abc-333"
+    }
+  ]
+}
+```
+
+### Execute cleanup — removes duplicates, keeps newest
+```bash
+curl -s -X POST "http://localhost:8000/admin/dedup?tenant=my-org&dry_run=false" | python3 -m json.tool
+```
+
+### Scan all tenants at once
+```bash
+curl -s -X POST "http://localhost:8000/admin/dedup?dry_run=true" | python3 -m json.tool
+```
+
+---
+
+## 22. List Namespaces
+
+List all namespaces that exist for a tenant:
+
+```bash
+curl -s http://localhost:8000/v1/my-org/namespaces | python3 -m json.tool
+```
+
+Response:
+```json
+{
+  "tenant": "my-org",
+  "namespaces": ["default", "docs", "office", "project"],
+  "total": 4
+}
+```
+
+---
+
+## 23. Recursive Directory Listing
+
+Get a flat list of all files and directories in a namespace:
+
+```bash
+curl -s "http://localhost:8000/v1/my-org/dirs/?namespace=project&recursive=true" | python3 -m json.tool
+```
+
+Returns all entries with full paths — useful for agents that need a complete view of the file tree.
+
+---
+
 ## Quick Reference
 
 | Action | Command |
@@ -488,6 +618,10 @@ You can try every endpoint interactively — upload files, run searches, etc.
 | Service status | `./dockerStart.sh --status` |
 | Run tests | `python -m pytest tests/ -v` |
 | Seed data | `python3 seed/upload_seed.py` |
+| List tenants | `curl http://localhost:8000/admin/tenants` |
+| List namespaces | `curl http://localhost:8000/v1/my-org/namespaces` |
+| Scan duplicates | `curl -X POST "http://localhost:8000/admin/dedup?dry_run=true"` |
+| Remove duplicates | `curl -X POST "http://localhost:8000/admin/dedup?dry_run=false"` |
 | API docs | `http://localhost:8000/docs` |
 | Qdrant dashboard | `http://localhost:6333/dashboard` |
 
