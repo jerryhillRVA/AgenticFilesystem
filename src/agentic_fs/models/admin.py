@@ -12,6 +12,12 @@ class NamespaceListResponse(BaseModel):
     total: int = Field(..., description="Number of namespaces.")
 
 
+class DeleteTenantResponse(BaseModel):
+    tenant: str = Field(..., description="Name of the deleted tenant.")
+    files_deleted: int = Field(..., description="Number of files removed from disk.")
+    vectors_deleted: bool = Field(..., description="Whether vectors were purged from the index.")
+
+
 class DuplicateGroupInfo(BaseModel):
     tenant: str = Field(..., description="Tenant containing the duplicates.")
     namespace: str = Field(..., description="Namespace containing the duplicates.")

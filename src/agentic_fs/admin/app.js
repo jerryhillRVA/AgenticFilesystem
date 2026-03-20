@@ -33,11 +33,13 @@ const pageNames = {
 async function api(path, options = {}) {
   const url = API_BASE + path;
   try {
-    const headers = options.headers !== undefined ? options.headers : { 'Content-Type': 'application/json' };
+    const headers = 'headers' in options ? options.headers : { 'Content-Type': 'application/json' };
     const resp = await fetch(url, { ...options, headers });
     if (!resp.ok) {
       const error = await resp.json().catch(() => ({ detail: resp.statusText }));
-      throw new Error(error.detail || `API error ${resp.status}`);
+      const detail = error.detail;
+      const message = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join('; ') : `API error ${resp.status}`);
+      throw new Error(message);
     }
     if (options.raw) return resp;
     const ct = resp.headers.get('content-type') || '';
@@ -64,6 +66,7 @@ function hideApiError() {
 
 // Tenant endpoints
 async function fetchTenants() { return api('/admin/tenants'); }
+async function deleteTenantApi(tenant) { return api(`/admin/tenants/${encodeURIComponent(tenant)}`, { method: 'DELETE' }); }
 async function fetchNamespaces(tenant) { return api(`/v1/${encodeURIComponent(tenant)}/namespaces`); }
 
 // Directory endpoints
@@ -294,10 +297,25 @@ async function loadTenantsPage() {
   }
 }
 
+async function handleDeleteTenant(tenantName, event) {
+  event.stopPropagation();
+  if (!confirm('Delete tenant "' + tenantName + '" and ALL its files? This cannot be undone.')) return;
+  try {
+    const result = await deleteTenantApi(tenantName);
+    if (state.activeTenant === tenantName) {
+      state.activeTenant = null;
+    }
+    loadTenantsPage();
+  } catch (err) {
+    alert('Delete tenant failed: ' + err.message);
+  }
+}
+
 function renderTenantCards(infos) {
   const container = document.getElementById('tenantCards');
   container.innerHTML = infos.map(info => `
     <div class="tenant-card" onclick="selectTenant('${escapeHtml(info.name)}')">
+      <button class="tenant-delete-btn" title="Delete tenant" onclick="handleDeleteTenant('${escapeHtml(info.name)}', event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
       <div class="tenant-name">
         <div class="tenant-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
         ${escapeHtml(info.name)}

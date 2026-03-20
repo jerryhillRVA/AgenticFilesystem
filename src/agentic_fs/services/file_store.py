@@ -293,6 +293,20 @@ class FileStore:
         os.rmdir(ns_dir)
         return True
 
+    def delete_tenant(self, tenant: str) -> int:
+        """Remove the entire tenant directory. Returns the number of files deleted."""
+        tenant_dir = self._tenant_dir(tenant)
+        if not os.path.isdir(tenant_dir):
+            raise FileNotFoundError(f"Tenant not found: {tenant}")
+
+        files_dir = os.path.join(tenant_dir, "files")
+        file_count = 0
+        if os.path.isdir(files_dir):
+            file_count = sum(1 for item in os.listdir(files_dir) if os.path.isdir(os.path.join(files_dir, item)))
+
+        shutil.rmtree(tenant_dir)
+        return file_count
+
     def list_tenants(self) -> list[str]:
         """Return sorted list of tenant directory names under base_path."""
         if not os.path.isdir(self.base_path):

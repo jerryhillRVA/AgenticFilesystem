@@ -380,3 +380,20 @@ class VectorStore:
             ),
         )
         logger.info(f"Deleted vectors for file {file_id}")
+
+    def delete_by_tenant(self, tenant_id: str):
+        """Delete all vectors belonging to a tenant."""
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="tenant_id",
+                            match=models.MatchValue(value=tenant_id),
+                        ),
+                    ]
+                )
+            ),
+        )
+        logger.info(f"Deleted all vectors for tenant {tenant_id}")

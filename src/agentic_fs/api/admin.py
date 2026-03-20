@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from agentic_fs.dependencies import get_file_store, get_vector_store
-from agentic_fs.models.admin import TenantListResponse, DeduplicationResponse
+from agentic_fs.models.admin import TenantListResponse, DeleteTenantResponse, DeduplicationResponse
 from agentic_fs.services.dedup import DeduplicationService
 
 router = APIRouter()
@@ -18,6 +18,30 @@ async def list_tenants():
     fs = get_file_store()
     tenants = fs.list_tenants()
     return TenantListResponse(tenants=tenants, total=len(tenants))
+
+
+@router.delete("/admin/tenants/{tenant}", response_model=DeleteTenantResponse)
+async def delete_tenant(tenant: str):
+    """Delete a tenant and all of its files and vectors.
+
+    Removes every file from disk and purges all vectors from the index.
+    This action is irreversible.
+    """
+    fs = get_file_store()
+    vs = get_vector_store()
+
+    try:
+        files_deleted = fs.delete_tenant(tenant)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Tenant not found: {tenant}")
+
+    vs.delete_by_tenant(tenant)
+
+    return DeleteTenantResponse(
+        tenant=tenant,
+        files_deleted=files_deleted,
+        vectors_deleted=True,
+    )
 
 
 @router.post("/admin/dedup", response_model=DeduplicationResponse)
