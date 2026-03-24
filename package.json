@@ -1,0 +1,35 @@
+{
+  "name": "@jhillrva/agentic-filesystem",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Tenant-scoped file storage and semantic search API with CLI for Docker-based deployment",
+  "repository": "https://github.com/jerryhillRVA/AgenticFilesystem",
+  "license": "MIT",
+  "bin": {
+    "afs": "./bin/afs.js"
+  },
+  "files": [
+    "bin/",
+    "docker-compose.yml",
+    "Dockerfile",
+    "src/",
+    "!src/**/__pycache__/",
+    "pyproject.toml"
+  ],
+  "scripts": {
+    "release": "bash scripts/release.sh",
+    "afs:start": "node bin/afs.js start",
+    "afs:stop": "node bin/afs.js stop",
+    "afs:status": "node bin/afs.js status",
+    "afs:logs": "node bin/afs.js logs",
+    "afs:clean": "node bin/afs.js clean"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

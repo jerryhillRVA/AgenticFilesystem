@@ -34,42 +34,90 @@ Clients (Agents / Web UI / API)
 ## Prerequisites
 
 - **Docker** and **Docker Compose** v2
+- **Node.js** >= 18 (for the CLI)
 - An **OpenAI API key** (for embeddings and RAG)
 
-## Quick Start
+## Installation
 
-1. **Clone and configure**
+Install globally via npm:
+
+```bash
+npm install -g @jhillrva/agentic-filesystem
+```
+
+Or as a project dependency:
+
+```bash
+npm install @jhillrva/agentic-filesystem
+```
+
+## Quick Start (npm CLI)
+
+1. **Initialize config in your project**
    ```bash
-   cd AgenticFilesystem
-   cp .env.example .env
-   # Edit .env and set your OPENAI_API_KEY
+   afs init
+   ```
+   This creates an `afs.config.json` in the current directory.
+
+2. **Set your OpenAI API key**
+
+   ```bash
+   export OPENAI_API_KEY=sk-...
    ```
 
-2. **Start all services**
+   The config file (`afs.config.json`) is for port configuration only — it's safe to commit.
+
+3. **Start all services**
    ```bash
-   ./dockerStart.sh --start
+   afs start
    ```
 
-   This builds images, starts all 5 services, waits for health checks, and displays status:
-
-   | Service | Port | Purpose |
-   |---------|------|---------|
-   | api | 8000 | FastAPI server |
-   | worker | — | Celery indexing worker |
-   | qdrant | 6333 | Vector database |
-   | redis | 6379 | Job queue broker |
-   | tika | 9998 | Text extraction |
-
-3. **Verify health**
+4. **Verify health**
    ```bash
-   curl http://localhost:8000/health
-   # {"status": "ok"}
+   afs status
    ```
 
-4. **Open API docs**
+5. **Open API docs**
    ```
    http://localhost:8000/docs
    ```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `afs init` | Create `afs.config.json` in the current project |
+| `afs start` | Start all services (builds images if needed) |
+| `afs start --no-wait` | Start without waiting for health checks |
+| `afs stop` | Stop all services |
+| `afs status` | Show service status and health checks |
+| `afs logs` | Tail logs from all services |
+| `afs logs api` | Tail logs from a specific service (api\|worker\|qdrant\|redis\|tika) |
+| `afs rebuild` | Force rebuild images and restart |
+| `afs clean` | Wipe all data (volumes) and restart fresh |
+
+## Config File (`afs.config.json`)
+
+The `OPENAI_API_KEY` environment variable must be set in your shell before running `afs start`.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `apiPort` | `8000` | Host port for the FastAPI server |
+| `qdrantPort` | `6333` | Host port for Qdrant |
+| `redisPort` | `6379` | Host port for Redis |
+| `tikaPort` | `9998` | Host port for Apache Tika |
+| `filestorePath` | `"/data"` | File storage path inside the container |
+| `apiBaseUrl` | _(auto)_ | Base URL for download links |
+
+## Services
+
+| Service | Default Port | Purpose |
+|---------|-------------|---------|
+| api | 8000 | FastAPI server |
+| worker | — | Celery indexing worker |
+| qdrant | 6333 | Vector database |
+| redis | 6379 | Job queue broker |
+| tika | 9998 | Text extraction |
 
 ## API Reference
 
@@ -112,6 +160,7 @@ Clients (Agents / Web UI / API)
 |--------|----------|-------------|
 | `GET` | `/admin/tenants` | List all tenants with data |
 | `POST` | `/admin/dedup` | Scan/remove duplicate files (`?dry_run=true`) |
+| `DELETE` | `/admin/tenants/{tenant}` | Delete a tenant and all its data |
 
 ### Examples
 
@@ -145,12 +194,7 @@ curl -X POST http://localhost:8000/v1/my-tenant/search/ask \
   -d '{"query": "What are the key design decisions?", "k": 5}'
 ```
 
-**Check indexing status:**
-```bash
-curl http://localhost:8000/v1/my-tenant/search/status/{file_id}
-```
-
-**Batch retrieve files** (get metadata + content for multiple files in one call):
+**Batch retrieve files:**
 ```bash
 curl -X POST http://localhost:8000/v1/my-tenant/files/batch \
   -H "Content-Type: application/json" \
@@ -160,114 +204,47 @@ curl -X POST http://localhost:8000/v1/my-tenant/files/batch \
   }'
 ```
 
-Each file entry in the response includes metadata, a `content_type` discriminator (`text`, `json`, `binary`, or `error`), inline content (raw text, parsed JSON, or extracted text for binaries), a `path` showing the file's location, and a fully qualified `download_url`. Set `"stream": true` for NDJSON streaming.
+## Releasing
 
-**Move a file to a new path:**
-```bash
-curl -X POST http://localhost:8000/v1/my-tenant/files/{file_id}/move \
-  -H "Content-Type: application/json" \
-  -d '{"new_path": "sprints/sprint-3"}'
-```
-
-**Create a directory:**
-```bash
-curl -X POST http://localhost:8000/v1/my-tenant/dirs \
-  -H "Content-Type: application/json" \
-  -d '{"namespace": "project", "path": "sprints/sprint-4"}'
-```
-
-**Delete an empty directory:**
-```bash
-curl -X DELETE "http://localhost:8000/v1/my-tenant/dirs/sprints/sprint-4?namespace=project"
-```
-
-**Browse directory tree:**
-```bash
-curl http://localhost:8000/v1/my-tenant/dirs/?namespace=project
-curl http://localhost:8000/v1/my-tenant/dirs/sprints/sprint-2?namespace=project
-```
-
-**Recursive directory listing** (flat list of all files and dirs):
-```bash
-curl "http://localhost:8000/v1/my-tenant/dirs/?namespace=project&recursive=true"
-```
-
-**List namespaces:**
-```bash
-curl http://localhost:8000/v1/my-tenant/namespaces
-```
-
-**List tenants:**
-```bash
-curl http://localhost:8000/admin/tenants
-```
-
-**Scan for duplicate files** (dry run — no deletions):
-```bash
-curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=true"
-```
-
-**Remove duplicate files** (keeps newest, deletes older copies):
-```bash
-curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=false"
-```
-
-## Deduplication
-
-Uploading a file with the same **filename**, **namespace**, and **path** as an existing file automatically replaces it — the `file_id` stays the same, the content is updated, and the file is re-indexed. No duplicate entries are created.
-
-Moving a file to a destination where a same-named file already exists also overwrites the existing file at that location.
-
-If duplicates accumulated before this behavior was added, use the admin dedup endpoint to clean them up:
+Bump version and publish to npm:
 
 ```bash
-# 1. Scan for duplicates (dry run — reports without deleting)
-curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=true"
-
-# 2. Review the response — check groups[].file_ids and groups[].keep
-# 3. Remove duplicates (keeps newest by updated_at timestamp)
-curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=false"
+npm run release -- 1.0.0
 ```
 
-## File Path Structure
+This will:
+1. Update the version in `package.json`
+2. Run `npm install` to sync the lockfile
+3. Publish to npm (`@jhillrva/agentic-filesystem`)
+4. Create a git commit and tag (`v1.0.0`)
 
-All data is stored on the local filesystem — no SQL database. The layout:
-
-```
-{FILESTORE_BASE_PATH}/
-└── {tenant}/
-    ├── files/
-    │   └── {file_id}/                  # One directory per file (keyed by UUID)
-    │       ├── {filename}              # Actual file content
-    │       └── {filename}.metadata     # JSON sidecar with FileMetadata
-    │
-    └── ns/                             # Namespace hierarchy
-        └── {namespace}/
-            └── {path}/                 # Nested subdirectories
-                └── {file_id}.ref       # JSON pointer: {"file_id": "...", "filename": "..."}
+Push after releasing:
+```bash
+git push && git push --tags
 ```
 
-- **File content** is stored in `files/{file_id}/` — the directory name is the UUID, not the filename
-- **Metadata** is a `.metadata` JSON sidecar alongside the file content
-- **`.ref` files** in namespace directories link the browsable directory tree to actual file storage
-- Moving or renaming a file updates the `.ref` file location; the `files/{file_id}/` directory stays put
+## Development
 
-## Seed Data
-
-Generate binary test files and upload seed data:
+### Quick Start (local dev)
 
 ```bash
-# Install deps locally (for seed script)
-pip install httpx pypdf python-docx openpyxl Pillow
-
-# Generate binary seed files (PDFs, DOCX, XLSX, images)
-python seed/create_binary_seeds.py
-
-# Upload all seed files and run demo searches
-python seed/upload_seed.py
+cd AgenticFilesystem
+cp .env.example .env    # Set your OPENAI_API_KEY
+./dockerStart.sh --start
 ```
 
-## Testing
+### Docker Management
+
+```bash
+./dockerStart.sh --start              # Build, start, wait for health
+./dockerStart.sh --rebuild            # Force rebuild (no cache) and restart
+./dockerStart.sh --stop               # Stop all services
+./dockerStart.sh --logs               # Tail all logs
+./dockerStart.sh --logs api           # Tail a specific service
+./dockerStart.sh --status             # Show status + health checks
+```
+
+### Testing
 
 **Unit tests** (no Docker required):
 ```bash
@@ -280,9 +257,23 @@ pytest tests/ -v --ignore=tests/test_integration.py
 bash scripts/run_tests.sh
 ```
 
-## Configuration
+## Deduplication
 
-All configuration is via environment variables (`.env` file):
+Uploading a file with the same **filename**, **namespace**, and **path** as an existing file automatically replaces it — the `file_id` stays the same, the content is updated, and the file is re-indexed.
+
+Moving a file to a destination where a same-named file already exists also overwrites the existing file.
+
+For bulk cleanup of older duplicates:
+```bash
+# Dry run
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=true"
+# Remove duplicates (keeps newest)
+curl -X POST "http://localhost:8000/admin/dedup?tenant=my-tenant&dry_run=false"
+```
+
+## Configuration (Environment Variables)
+
+For local development with `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -296,7 +287,7 @@ All configuration is via environment variables (`.env` file):
 | `TIKA_URL` | `http://tika:9998` | Tika server URL |
 | `CHUNK_SIZE_TOKENS` | `512` | Chunk size in tokens |
 | `CHUNK_OVERLAP_PERCENT` | `10` | Chunk overlap percentage |
-| `API_BASE_URL` | _(auto)_ | Base URL for download links (e.g. `https://api.example.com`) |
+| `API_BASE_URL` | _(auto)_ | Base URL for download links |
 | `BATCH_MAX_FILES` | `100` | Max file IDs per batch retrieve request |
 
 ## Project Structure
@@ -323,22 +314,4 @@ src/agentic_fs/
     ├── celery_app.py # Celery config
     ├── pipeline.py   # Indexing pipeline
     └── tasks.py      # Task definitions
-```
-
-## Docker Management
-
-Use `dockerStart.sh` to manage the Docker Compose stack:
-
-```bash
-./dockerStart.sh --start              # Build, start all services, wait for health checks
-./dockerStart.sh --rebuild            # Force rebuild images (no cache) and restart
-./dockerStart.sh --stop               # Stop all services
-./dockerStart.sh --logs               # Tail logs from all services
-./dockerStart.sh --logs api           # Tail logs from a specific service (api|worker|qdrant|redis|tika)
-./dockerStart.sh --status             # Show service status and health checks
-```
-
-To also remove volumes and clear all data:
-```bash
-docker compose down -v
 ```
