@@ -43,7 +43,7 @@ CURRENT=$(node -p "require('./package.json').version")
 BRANCH="release/v$VERSION"
 TAG="v$VERSION"
 
-echo "Releasing @jhill/agentic-filesystem"
+echo "Releasing @jhillrva/agentic-filesystem"
 echo "  Current version: $CURRENT"
 echo "  New version:     $VERSION"
 echo "  Branch:          $BRANCH"
@@ -81,7 +81,7 @@ git push origin "$TAG"
 
 # Publish to npm
 echo ""
-echo "Publishing @jhill/agentic-filesystem@$VERSION to npm..."
+echo "Publishing @jhillrva/agentic-filesystem@$VERSION to npm..."
 npm publish --access public
 
 # Create GitHub release
@@ -93,7 +93,7 @@ gh release create "$TAG" \
   --target "$BRANCH"
 
 echo ""
-echo "Done! Released @jhill/agentic-filesystem@$VERSION"
-echo "  npm:    https://www.npmjs.com/package/@jhill/agentic-filesystem"
+echo "Done! Released @jhillrva/agentic-filesystem@$VERSION"
+echo "  npm:    https://www.npmjs.com/package/@jhillrva/agentic-filesystem"
 echo "  branch: $BRANCH"
 echo "  tag:    $TAG"

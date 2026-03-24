@@ -42,13 +42,13 @@ Clients (Agents / Web UI / API)
 Install globally via npm:
 
 ```bash
-npm install -g @jhill/agentic-filesystem
+npm install -g @jhillrva/agentic-filesystem
 ```
 
 Or as a project dependency:
 
 ```bash
-npm install @jhill/agentic-filesystem
+npm install @jhillrva/agentic-filesystem
 ```
 
 ## Quick Start (npm CLI)
@@ -215,7 +215,7 @@ npm run release -- 1.0.0
 This will:
 1. Update the version in `package.json`
 2. Run `npm install` to sync the lockfile
-3. Publish to npm (`@jhill/agentic-filesystem`)
+3. Publish to npm (`@jhillrva/agentic-filesystem`)
 4. Create a git commit and tag (`v1.0.0`)
 
 Push after releasing:
