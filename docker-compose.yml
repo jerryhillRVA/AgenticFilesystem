@@ -4,17 +4,18 @@ services:
       context: .
       target: api
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     volumes:
       - ./src:/app/src
       - file_data:/data
-    env_file: .env
     environment:
       - PYTHONPATH=/app/src
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379/0
       - TIKA_URL=http://tika:9998
-      - FILESTORE_BASE_PATH=/data
+      - FILESTORE_BASE_PATH=${FILESTORE_BASE_PATH:-/data}
+      - API_BASE_URL=${API_BASE_URL:-}
     depends_on:
       qdrant:
         condition: service_healthy
@@ -36,13 +37,13 @@ services:
     volumes:
       - ./src:/app/src
       - file_data:/data
-    env_file: .env
     environment:
       - PYTHONPATH=/app/src
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379/0
       - TIKA_URL=http://tika:9998
-      - FILESTORE_BASE_PATH=/data
+      - FILESTORE_BASE_PATH=${FILESTORE_BASE_PATH:-/data}
     depends_on:
       qdrant:
         condition: service_healthy
@@ -54,7 +55,7 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     ports:
-      - "6333:6333"
+      - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
@@ -68,7 +69,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -78,7 +79,7 @@ services:
   tika:
     image: apache/tika:latest
     ports:
-      - "9998:9998"
+      - "${TIKA_PORT:-9998}:9998"
 
 volumes:
   file_data:

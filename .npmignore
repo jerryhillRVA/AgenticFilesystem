@@ -1,0 +1,29 @@
+# Dev / test files
+tests/
+seed/
+scripts/
+.env
+.env.*
+*.pyc
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# Docker dev files
+dockerStart.sh
+
+# Docs (not needed in package)
+TEST_GUIDE.md
+CLAUDE.md
+
+# IDE / editor
+.vscode/
+.idea/
+.claude/
+.cursor/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
