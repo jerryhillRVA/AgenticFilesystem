@@ -1,8 +1,18 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 
 from agentic_fs.dependencies import get_file_store, get_vector_store
-from agentic_fs.models.admin import TenantListResponse, DeleteTenantResponse, DeduplicationResponse
+from agentic_fs.models.admin import (
+    TenantListResponse,
+    DeleteTenantResponse,
+    DeduplicationResponse,
+    ReindexResponse,
+)
 from agentic_fs.services.dedup import DeduplicationService
+from agentic_fs.worker.tasks import index_file
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -80,4 +90,60 @@ async def deduplicate_files(
             }
             for g in result.groups
         ],
+    )
+
+
+@router.post("/admin/reindex", response_model=ReindexResponse)
+async def reindex_tenant(
+    tenant: str = Query(..., description="Tenant whose files should be re-indexed."),
+    force: bool = Query(default=False, description="Re-index even files already marked as indexed."),
+    namespace: str | None = Query(default=None, description="Scope to a single namespace. Omit to reindex all."),
+):
+    """Re-index all files for a tenant by enqueuing indexing tasks.
+
+    Resets indexing status to 'pending', deletes existing vectors, and
+    enqueues Celery tasks for each file. Use force=true to re-index files
+    that are already marked as indexed.
+    """
+    fs = get_file_store()
+    vs = get_vector_store()
+
+    namespaces = [namespace] if namespace else fs.list_namespaces(tenant)
+    if not namespaces:
+        raise HTTPException(status_code=404, detail=f"No namespaces found for tenant: {tenant}")
+
+    queued_ids: list[str] = []
+    skipped = 0
+    errors: list[str] = []
+
+    for ns in namespaces:
+        try:
+            entries = fs.list_directory_recursive(tenant, namespace=ns)
+        except Exception as exc:
+            errors.append(f"Error listing {ns}: {exc}")
+            continue
+
+        for entry in entries:
+            if entry.type != "file" or not entry.file_id:
+                continue
+
+            try:
+                metadata = fs.get_metadata(tenant, entry.file_id)
+                if metadata.indexing_status == "indexed" and not force:
+                    skipped += 1
+                    continue
+
+                vs.delete_by_file(tenant, entry.file_id)
+                fs.update_metadata(tenant, entry.file_id, indexing_status="pending", indexing_error=None)
+                index_file.delay(tenant, entry.file_id)
+                queued_ids.append(entry.file_id)
+            except Exception as exc:
+                errors.append(f"Error processing {entry.file_id}: {exc}")
+
+    return ReindexResponse(
+        tenant=tenant,
+        files_queued=len(queued_ids),
+        files_skipped=skipped,
+        file_ids=queued_ids,
+        errors=errors,
     )

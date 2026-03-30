@@ -27,6 +27,14 @@ class DuplicateGroupInfo(BaseModel):
     keep: str = Field(..., description="The file_id that will be (or was) kept.")
 
 
+class ReindexResponse(BaseModel):
+    tenant: str = Field(..., description="Tenant whose files were queued for re-indexing.")
+    files_queued: int = Field(..., description="Number of files enqueued for re-indexing.")
+    files_skipped: int = Field(..., description="Number of files skipped (already indexed, use force=true to override).")
+    file_ids: list[str] = Field(default_factory=list, description="IDs of files that were queued.")
+    errors: list[str] = Field(default_factory=list, description="Errors encountered during enumeration.")
+
+
 class DeduplicationResponse(BaseModel):
     tenants_scanned: int = Field(..., description="Number of tenants scanned.")
     duplicate_groups_found: int = Field(..., description="Number of groups with duplicates.")
