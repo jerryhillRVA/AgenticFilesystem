@@ -43,6 +43,9 @@ function loadConfig() {
 
 function configToEnv(config) {
   const env = {};
+  // openaiApiKey from afs.config.json (lowest priority)
+  if (config.openaiApiKey) env.OPENAI_API_KEY = config.openaiApiKey;
+  // process.env overrides config file
   if (process.env.OPENAI_API_KEY) env.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (config.apiPort !== 8000) env.API_PORT = String(config.apiPort);
   if (config.qdrantPort !== 6333) env.QDRANT_PORT = String(config.qdrantPort);
@@ -174,7 +177,9 @@ program
     console.log(`\x1b[32mCreated ${CONFIG_FILE}\x1b[0m`);
     console.log('');
     console.log('Next steps:');
-    console.log('  1. Set your OpenAI key: \x1b[36mexport OPENAI_API_KEY=sk-...\x1b[0m');
+    console.log('  1. Set your OpenAI key via one of:');
+    console.log('     a. Add \x1b[36m"openaiApiKey": "sk-..."\x1b[0m to afs.config.json');
+    console.log('     b. Or export: \x1b[36mexport OPENAI_API_KEY=sk-...\x1b[0m');
     console.log('  2. Run \x1b[36mafs start\x1b[0m to launch services');
   });
 
@@ -184,10 +189,11 @@ program
   .option('--no-wait', 'Skip waiting for health checks')
   .action((opts) => {
     const config = getConfig();
-    if (!process.env.OPENAI_API_KEY) {
-      console.log('\x1b[33mWarning: OPENAI_API_KEY is not set in the environment\x1b[0m');
+    const configEnv = configToEnv(config);
+    if (!configEnv.OPENAI_API_KEY) {
+      console.log('\x1b[33mWarning: OPENAI_API_KEY is not set\x1b[0m');
       console.log('Embeddings and RAG will not work without it.');
-      console.log('Set it via: export OPENAI_API_KEY=sk-...\n');
+      console.log('Set it via \x1b[36m"openaiApiKey"\x1b[0m in afs.config.json or \x1b[36mexport OPENAI_API_KEY=sk-...\x1b[0m\n');
     }
     console.log('\x1b[36mStarting Agentic Filesystem...\x1b[0m\n');
     dc('up -d --build');

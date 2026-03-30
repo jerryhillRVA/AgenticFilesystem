@@ -10,7 +10,7 @@ services:
       - file_data:/data
     environment:
       - PYTHONPATH=/app/src
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379/0
       - TIKA_URL=http://tika:9998
@@ -39,7 +39,7 @@ services:
       - file_data:/data
     environment:
       - PYTHONPATH=/app/src
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379/0
       - TIKA_URL=http://tika:9998
