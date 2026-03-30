@@ -1,6 +1,6 @@
 {
   "name": "@jhillrva/agentic-filesystem",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": false,
   "type": "module",
   "description": "Tenant-scoped file storage and semantic search API with CLI for Docker-based deployment",
