@@ -1,12 +1,29 @@
 import os
 import json
 import shutil
+import logging
+import tempfile
 from datetime import datetime, timezone
 
 from agentic_fs.utils.ids import generate_file_id
 from agentic_fs.utils.paths import sanitize_path_component
 from agentic_fs.utils.mime import guess_mime_type
 from agentic_fs.models.file import FileMetadata, DirEntry
+
+logger = logging.getLogger(__name__)
+
+
+def _atomic_json_write(path: str, data: dict, indent: int = 2) -> None:
+    """Write JSON to a file atomically using temp file + rename."""
+    dir_name = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=indent)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
 
 
 class FileStore:
@@ -98,13 +115,11 @@ class FileStore:
 
         # Write metadata sidecar
         meta_path = os.path.join(file_dir, f"{filename}.metadata")
-        with open(meta_path, "w") as f:
-            json.dump(metadata.model_dump(), f, indent=2)
+        _atomic_json_write(meta_path, metadata.model_dump())
 
         # Write a reference file in namespace dir for directory listing
         ref_path = os.path.join(ns_dir, f"{file_id}.ref")
-        with open(ref_path, "w") as f:
-            json.dump({"file_id": file_id, "filename": filename}, f)
+        _atomic_json_write(ref_path, {"file_id": file_id, "filename": filename})
 
         return metadata
 
@@ -149,8 +164,7 @@ class FileStore:
 
         file_dir = self._file_dir(tenant, file_id)
         meta_path = os.path.join(file_dir, f"{updated.filename}.metadata")
-        with open(meta_path, "w") as f:
-            json.dump(updated.model_dump(), f, indent=2)
+        _atomic_json_write(meta_path, updated.model_dump())
 
         return updated
 
@@ -206,8 +220,7 @@ class FileStore:
         )
 
         meta_path = os.path.join(file_dir, f"{filename}.metadata")
-        with open(meta_path, "w") as f:
-            json.dump(updated.model_dump(), f, indent=2)
+        _atomic_json_write(meta_path, updated.model_dump())
 
         return updated
 
@@ -239,6 +252,11 @@ class FileStore:
                     ))
                 except FileNotFoundError:
                     pass
+                except (json.JSONDecodeError, KeyError, ValueError) as e:
+                    logger.warning(
+                        "Skipping file %s: corrupted metadata: %s",
+                        ref.get("file_id", "unknown"), e,
+                    )
 
         return entries
 
@@ -264,8 +282,7 @@ class FileStore:
         new_ns_dir = self._namespace_dir(tenant, target_namespace, new_path)
         os.makedirs(new_ns_dir, exist_ok=True)
         new_ref = os.path.join(new_ns_dir, f"{file_id}.ref")
-        with open(new_ref, "w") as f:
-            json.dump({"file_id": file_id, "filename": metadata.filename}, f)
+        _atomic_json_write(new_ref, {"file_id": file_id, "filename": metadata.filename})
 
         # Update metadata sidecar
         updated = self.update_metadata(

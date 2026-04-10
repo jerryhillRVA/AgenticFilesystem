@@ -2,6 +2,7 @@ import os
 import json
 
 from agentic_fs.models.file import FileMetadata
+from agentic_fs.services.file_store import _atomic_json_write
 
 
 class MetadataStore:
@@ -35,7 +36,6 @@ class MetadataStore:
         updated = FileMetadata(**data)
         file_dir = self._file_dir(tenant, file_id)
         meta_path = os.path.join(file_dir, f"{updated.filename}.metadata")
-        with open(meta_path, "w") as f:
-            json.dump(updated.model_dump(), f, indent=2)
+        _atomic_json_write(meta_path, updated.model_dump())
 
         return updated
